@@ -1,0 +1,53 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Therapist {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  fullName     String   @map("full_name")
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  passwordResetTokens PasswordResetToken[]
+  patients            Patient[]
+
+  @@map("therapists")
+}
+
+model Patient {
+  id            String   @id @default(uuid()) @db.Uuid
+  therapistId   String   @map("therapist_id") @db.Uuid
+  fullName      String   @map("full_name")
+  age           Int      @db.SmallInt
+  gender        String
+  contact       String
+  schoolingBand String?  @map("schooling_band")
+  avatarUrl     String?  @map("avatar_url")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  therapist Therapist @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+
+  @@index([therapistId])
+  @@index([therapistId, fullName])
+  @@map("patients")
+}
+
+model PasswordResetToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  therapistId String   @map("therapist_id") @db.Uuid
+  tokenHash   String   @unique @map("token_hash")
+  expiresAt   DateTime @map("expires_at") @db.Timestamptz(6)
+  consumed    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  therapist Therapist @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+
+  @@index([therapistId])
+  @@map("password_reset_tokens")
+}

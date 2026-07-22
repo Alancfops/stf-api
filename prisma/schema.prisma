@@ -7,6 +7,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AssessmentStatus {
+  DRAFT
+  FINALIZED
+}
+
 model Therapist {
   id           String   @id @default(uuid()) @db.Uuid
   email        String   @unique
@@ -16,6 +21,7 @@ model Therapist {
 
   passwordResetTokens PasswordResetToken[]
   patients            Patient[]
+  assessments         Assessment[]
 
   @@map("therapists")
 }
@@ -31,7 +37,8 @@ model Patient {
   avatarUrl     String?  @map("avatar_url")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  therapist Therapist @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  therapist   Therapist    @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  assessments Assessment[]
 
   @@index([therapistId])
   @@index([therapistId, fullName])
@@ -50,4 +57,51 @@ model PasswordResetToken {
 
   @@index([therapistId])
   @@map("password_reset_tokens")
+}
+
+model Instrument {
+  code        String @id
+  displayName String @map("display_name")
+  authorsJson String @map("authors_json")
+  sortHint    Int    @map("sort_hint")
+
+  assessments Assessment[]
+
+  @@map("instruments")
+}
+
+model Assessment {
+  id                String           @id @default(uuid()) @db.Uuid
+  therapistId       String           @map("therapist_id") @db.Uuid
+  patientId         String           @map("patient_id") @db.Uuid
+  instrumentCode    String           @map("instrument_code")
+  status            AssessmentStatus @default(DRAFT)
+  startedAt         DateTime         @default(now()) @map("started_at") @db.Timestamptz(6)
+  finalizedAt       DateTime?        @map("finalized_at") @db.Timestamptz(6)
+  payload           Json             @default("{}")
+  schoolingBandUsed String?          @map("schooling_band_used")
+  notesObservation  String?          @map("notes_observation")
+
+  therapist Therapist         @relation(fields: [therapistId], references: [id], onDelete: Cascade)
+  patient   Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  instrument Instrument       @relation(fields: [instrumentCode], references: [code])
+  result    AssessmentResult?
+
+  @@index([therapistId, patientId, instrumentCode, finalizedAt(sort: Desc)])
+  @@index([status])
+  @@map("assessments")
+}
+
+model AssessmentResult {
+  assessmentId        String   @id @map("assessment_id") @db.Uuid
+  rawValue            Decimal  @map("raw_value") @db.Decimal(10, 2)
+  rawLabel            String   @map("raw_label")
+  classificationLabel String   @map("classification_label")
+  classificationCode  String   @map("classification_code")
+  classificationMeta  Json     @map("classification_meta")
+  computedAt          DateTime @default(now()) @map("computed_at") @db.Timestamptz(6)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@map("assessment_results")
 }

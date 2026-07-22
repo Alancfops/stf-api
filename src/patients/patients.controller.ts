@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, Use
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 
+import { AssessmentsService } from '../assessments/assessments.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentTherapist } from '../common/decorators/current-therapist.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
@@ -16,7 +17,10 @@ import { PatientsService } from './patients.service';
 @UseGuards(JwtAuthGuard)
 @Controller('patients')
 export class PatientsController {
-  constructor(private readonly patientsService: PatientsService) {}
+  constructor(
+    private readonly patientsService: PatientsService,
+    private readonly assessmentsService: AssessmentsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'RF005 — Lista pacientes do fisioterapeuta autenticado' })
@@ -25,6 +29,35 @@ export class PatientsController {
     @Query(new ZodValidationPipe(listPatientsQuerySchema)) query: z.infer<typeof listPatientsQuerySchema>,
   ) {
     return this.patientsService.list(therapist.therapistId, query);
+  }
+
+  @Get(':id/assessments/:assessmentId')
+  @ApiOperation({ summary: 'RF006 — Detalhe de avaliação do paciente' })
+  assessmentDetail(
+    @CurrentTherapist() therapist: { therapistId: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('assessmentId', ParseUUIDPipe) assessmentId: string,
+  ) {
+    return this.assessmentsService.findByPatientAndId(therapist.therapistId, id, assessmentId);
+  }
+
+  @Get(':id/assessments')
+  @ApiOperation({ summary: 'RF006 — Histórico de avaliações do paciente' })
+  listAssessments(
+    @CurrentTherapist() therapist: { therapistId: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.assessmentsService.listByPatient(therapist.therapistId, id);
+  }
+
+  @Get(':id/instruments/:code/timeseries')
+  @ApiOperation({ summary: 'RF012 — Série temporal de avaliações finalizadas por instrumento' })
+  timeseries(
+    @CurrentTherapist() therapist: { therapistId: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('code') code: string,
+  ) {
+    return this.assessmentsService.getTimeseries(therapist.therapistId, id, code);
   }
 
   @Get(':id')

@@ -53,6 +53,7 @@ export type CreatePatientInput = z.infer<typeof createPatientSchema>;
 
 export const listPatientsQuerySchema = z.object({
   search: z.string().trim().optional(),
+  gender: z.enum(GENDER_VALUES).optional(),
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(50).default(25),
   sortBy: z.enum(['fullName', 'age', 'gender']).default('fullName'),

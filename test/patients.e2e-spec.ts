@@ -45,10 +45,14 @@ describe('Patients (e2e)', () => {
   });
 
   afterEach(async () => {
+    await prisma.assessmentResult.deleteMany();
+    await prisma.assessment.deleteMany();
     await prisma.patient.deleteMany();
   });
 
   afterAll(async () => {
+    await prisma.assessmentResult.deleteMany();
+    await prisma.assessment.deleteMany();
     await prisma.patient.deleteMany();
     await prisma.passwordResetToken.deleteMany();
     await prisma.therapist.deleteMany();
@@ -189,5 +193,163 @@ describe('Patients (e2e)', () => {
     expect(patientsB).toHaveLength(1);
     expect(patientsA[0]?.fullName).toBe('Paciente A');
     expect(patientsB[0]?.fullName).toBe('Paciente B');
+  });
+
+  it('GET /patients/:id/assessments lista avaliações finalizadas do paciente', async () => {
+    const patient = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        fullName: 'Paciente Histórico',
+        age: 79,
+        gender: 'masculino',
+        contact: '(82) 9 5555-6666',
+        schoolingBand: '9_11_anos',
+      })
+      .expect(201);
+
+    const patientId = patient.body.id as string;
+
+    const tugDraft = await request(app.getHttpServer())
+      .post('/assessments/draft')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ patientId, instrumentCode: 'TUG' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/assessments/${tugDraft.body.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        payload: { trial1Sec: 10, trial2Sec: 11, trial3Sec: 12 },
+      })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/assessments/${tugDraft.body.id}/finalize`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(201);
+
+    const bergDraft = await request(app.getHttpServer())
+      .post('/assessments/draft')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ patientId, instrumentCode: 'BERG' })
+      .expect(201);
+
+    const bergPayload = Object.fromEntries(
+      Array.from({ length: 14 }, (_, index) => [`berg_${index + 1}`, 3]),
+    );
+
+    await request(app.getHttpServer())
+      .patch(`/assessments/${bergDraft.body.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ payload: bergPayload })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post(`/assessments/${bergDraft.body.id}/finalize`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(201);
+
+    const list = await request(app.getHttpServer())
+      .get(`/patients/${patientId}/assessments`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(list.body.data).toHaveLength(2);
+    expect(list.body.data[0]?.instrumentCode).toBe('BERG');
+    expect(list.body.data[0]?.result?.rawLabel).toBeDefined();
+    expect(list.body.data[1]?.instrumentCode).toBe('TUG');
+
+    await request(app.getHttpServer())
+      .get(`/patients/${patientId}/assessments`)
+      .set('Authorization', `Bearer ${tokenB}`)
+      .expect(404);
+  });
+
+  it('GET /patients/:id/assessments/:assessmentId retorna detalhe com timeseries', async () => {
+    const patient = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        fullName: 'Paciente Detalhe',
+        age: 77,
+        gender: 'feminino',
+        contact: '(82) 9 7777-8888',
+        schoolingBand: '5_8_anos',
+      })
+      .expect(201);
+
+    const patientId = patient.body.id as string;
+
+    const draft = await request(app.getHttpServer())
+      .post('/assessments/draft')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ patientId, instrumentCode: 'TUG' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .patch(`/assessments/${draft.body.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        payload: { trial1Sec: 9, trial2Sec: 10, trial3Sec: 11 },
+      })
+      .expect(200);
+
+    const finalized = await request(app.getHttpServer())
+      .post(`/assessments/${draft.body.id}/finalize`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(201);
+
+    const detail = await request(app.getHttpServer())
+      .get(`/patients/${patientId}/assessments/${finalized.body.id}`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(detail.body.instrumentCode).toBe('TUG');
+    expect(detail.body.result.rawValue).toBe(10);
+    expect(detail.body.timeseries.canShowChart).toBe(false);
+    expect(detail.body.timeseries.points).toHaveLength(1);
+  });
+
+  it('GET /patients filtra por sexo e ordena por idade', async () => {
+    await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        fullName: 'Ana Silva',
+        age: 70,
+        gender: 'feminino',
+        contact: '(82) 9 1111-2222',
+        schoolingBand: '1_4_anos',
+      })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({
+        fullName: 'Bruno Costa',
+        age: 80,
+        gender: 'masculino',
+        contact: '(82) 9 3333-4444',
+        schoolingBand: '5_8_anos',
+      })
+      .expect(201);
+
+    const femaleOnly = await request(app.getHttpServer())
+      .get('/patients?gender=feminino')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(
+      femaleOnly.body.data.every((item: { gender: string }) => item.gender === 'feminino'),
+    ).toBe(true);
+
+    const byAgeDesc = await request(app.getHttpServer())
+      .get('/patients?sortBy=age&sortOrder=desc')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .expect(200);
+
+    expect(byAgeDesc.body.data[0]?.age).toBeGreaterThanOrEqual(byAgeDesc.body.data[1]?.age ?? 0);
   });
 });

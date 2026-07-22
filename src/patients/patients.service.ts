@@ -83,6 +83,7 @@ export class PatientsService {
             },
           }
         : {}),
+      ...(query.gender ? { gender: query.gender } : {}),
     };
 
     const [total, patients] = await Promise.all([

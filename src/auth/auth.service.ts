@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -14,6 +15,7 @@ import {
   generateResetToken,
   hashPassword,
   hashResetToken,
+  RESET_TOKEN_RETENTION_MS,
   RESET_TOKEN_TTL_MS,
   verifyPassword,
 } from './auth.crypto';
@@ -36,13 +38,17 @@ type AuthResponse = {
 };
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly config: ConfigService<Env, true>,
     private readonly notifications: NotificationsService,
   ) {}
+
+  async onModuleInit() {
+    await this.cleanupStalePasswordResetTokens();
+  }
 
   async register(input: RegisterInput): Promise<AuthResponse> {
     const email = input.email.toLowerCase();
@@ -91,6 +97,8 @@ export class AuthService {
   }
 
   async forgotPassword(input: ForgotPasswordInput): Promise<{ message: string }> {
+    await this.cleanupStalePasswordResetTokens();
+
     const email = input.email.toLowerCase();
     const therapist = await this.prisma.therapist.findUnique({
       where: { email },
@@ -196,6 +204,17 @@ export class AuthService {
     }
 
     return resetToken;
+  }
+
+  /** Remove tokens expirados ou com mais de 24h (RF003 — minimização de retenção). */
+  private async cleanupStalePasswordResetTokens(): Promise<void> {
+    const retentionCutoff = new Date(Date.now() - RESET_TOKEN_RETENTION_MS);
+
+    await this.prisma.passwordResetToken.deleteMany({
+      where: {
+        OR: [{ expiresAt: { lt: new Date() } }, { createdAt: { lt: retentionCutoff } }],
+      },
+    });
   }
 
   private buildAuthResponse(

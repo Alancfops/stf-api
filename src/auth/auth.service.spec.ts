@@ -20,6 +20,7 @@ describe('AuthService', () => {
       create: jest.Mock;
       findFirst: jest.Mock;
       update: jest.Mock;
+      deleteMany: jest.Mock;
     };
     $transaction: jest.Mock;
   };
@@ -37,6 +38,7 @@ describe('AuthService', () => {
         create: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
+        deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
       $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
     };
@@ -103,6 +105,7 @@ describe('AuthService', () => {
         'Se o e-mail estiver cadastrado, enviaremos um código de recuperação.',
     });
 
+    expect(prisma.passwordResetToken.deleteMany).toHaveBeenCalled();
     expect(notifications.sendPasswordResetCode).not.toHaveBeenCalled();
   });
 

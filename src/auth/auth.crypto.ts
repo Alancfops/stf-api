@@ -22,3 +22,6 @@ export function generateResetToken(): string {
 }
 
 export const RESET_TOKEN_TTL_MS = 10 * 60 * 1000;
+
+/** RF003 — retenção máxima no banco (tokens expirados/consumidos). */
+export const RESET_TOKEN_RETENTION_MS = 24 * 60 * 60 * 1000;

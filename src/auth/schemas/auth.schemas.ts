@@ -48,16 +48,24 @@ export const forgotPasswordSchema = z.object({
   email: emailSchema,
 });
 
+export const resetTokenSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{6}$/, 'O código deve ter 6 dígitos numéricos.');
+
+export const verifyResetCodeSchema = z.object({
+  email: emailSchema,
+  token: resetTokenSchema,
+});
+
 export const resetPasswordSchema = z.object({
   email: emailSchema,
-  token: z
-    .string()
-    .trim()
-    .regex(/^\d{6}$/, 'O código deve ter 6 dígitos numéricos.'),
+  token: resetTokenSchema,
   password: passwordSchema,
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+export type VerifyResetCodeInput = z.infer<typeof verifyResetCodeSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;

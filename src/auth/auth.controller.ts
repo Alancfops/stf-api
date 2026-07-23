@@ -9,6 +9,7 @@ import {
   loginSchema,
   registerSchema,
   resetPasswordSchema,
+  verifyResetCodeSchema,
 } from './schemas/auth.schemas';
 
 @ApiTags('auth')
@@ -34,6 +35,14 @@ export class AuthController {
     @Body(new ZodValidationPipe(forgotPasswordSchema)) body: z.infer<typeof forgotPasswordSchema>,
   ) {
     return this.authService.forgotPassword(body);
+  }
+
+  @Post('verify-reset-code')
+  @ApiOperation({ summary: 'RF003 — Validar código antes de definir nova senha' })
+  verifyResetCode(
+    @Body(new ZodValidationPipe(verifyResetCodeSchema)) body: z.infer<typeof verifyResetCodeSchema>,
+  ) {
+    return this.authService.verifyResetCode(body);
   }
 
   @Post('reset-password')

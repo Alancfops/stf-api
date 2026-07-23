@@ -22,6 +22,7 @@ import {
   LoginInput,
   RegisterInput,
   ResetPasswordInput,
+  VerifyResetCodeInput,
 } from './schemas/auth.schemas';
 
 type AuthUser = {
@@ -145,29 +146,16 @@ export class AuthService {
     };
   }
 
+  async verifyResetCode(input: VerifyResetCodeInput): Promise<{ message: string }> {
+    await this.findValidResetToken(input.email, input.token);
+    return { message: 'Código válido.' };
+  }
+
   async resetPassword(input: ResetPasswordInput): Promise<{ message: string }> {
-    const email = input.email.toLowerCase();
-    const therapist = await this.prisma.therapist.findUnique({
-      where: { email },
+    const resetToken = await this.findValidResetToken(input.email, input.token);
+    const therapist = await this.prisma.therapist.findUniqueOrThrow({
+      where: { id: resetToken.therapistId },
     });
-
-    if (!therapist) {
-      throw new UnauthorizedException('Código inválido ou expirado.');
-    }
-
-    const tokenHash = hashResetToken(input.token);
-    const resetToken = await this.prisma.passwordResetToken.findFirst({
-      where: {
-        therapistId: therapist.id,
-        tokenHash,
-        consumed: false,
-        expiresAt: { gt: new Date() },
-      },
-    });
-
-    if (!resetToken) {
-      throw new UnauthorizedException('Código inválido ou expirado.');
-    }
 
     const passwordHash = await hashPassword(input.password);
 
@@ -183,6 +171,31 @@ export class AuthService {
     ]);
 
     return { message: 'Senha alterada com sucesso.' };
+  }
+
+  private async findValidResetToken(email: string, token: string) {
+    const therapist = await this.prisma.therapist.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!therapist) {
+      throw new UnauthorizedException('Código inválido ou expirado.');
+    }
+
+    const resetToken = await this.prisma.passwordResetToken.findFirst({
+      where: {
+        therapistId: therapist.id,
+        tokenHash: hashResetToken(token),
+        consumed: false,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!resetToken) {
+      throw new UnauthorizedException('Código inválido ou expirado.');
+    }
+
+    return resetToken;
   }
 
   private buildAuthResponse(

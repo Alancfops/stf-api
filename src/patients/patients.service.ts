@@ -5,6 +5,7 @@ import { savePatientAvatar } from './patient-avatar.storage';
 import {
   CreatePatientInput,
   ListPatientsQuery,
+  UpdatePatientInput,
 } from './schemas/patient.schemas';
 
 export type PatientResponse = {
@@ -36,6 +37,43 @@ export class PatientsService {
     const patient = await this.prisma.patient.create({
       data: {
         therapistId,
+        fullName: input.fullName.trim(),
+        age: input.age,
+        gender: input.gender,
+        contact: input.contact.trim(),
+        schoolingBand: input.schoolingBand,
+      },
+    });
+
+    if (input.avatarImage) {
+      const avatarUrl = await savePatientAvatar(patient.id, input.avatarImage);
+      const updated = await this.prisma.patient.update({
+        where: { id: patient.id },
+        data: { avatarUrl },
+      });
+      return this.toResponse(updated);
+    }
+
+    return this.toResponse(patient);
+  }
+
+  async update(
+    therapistId: string,
+    patientId: string,
+    input: UpdatePatientInput,
+  ): Promise<PatientResponse> {
+    const existing = await this.prisma.patient.findFirst({
+      where: { id: patientId, therapistId },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      throw new NotFoundException('Paciente não encontrado.');
+    }
+
+    const patient = await this.prisma.patient.update({
+      where: { id: patientId },
+      data: {
         fullName: input.fullName.trim(),
         age: input.age,
         gender: input.gender,

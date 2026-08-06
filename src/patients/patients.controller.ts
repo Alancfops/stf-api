@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 
@@ -9,6 +9,7 @@ import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import {
   createPatientSchema,
   listPatientsQuerySchema,
+  updatePatientSchema,
 } from './schemas/patient.schemas';
 import { PatientsService } from './patients.service';
 
@@ -67,6 +68,16 @@ export class PatientsController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.patientsService.findById(therapist.therapistId, id);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'RF004 — Atualiza cadastro do paciente (escopo do fisioterapeuta autenticado)' })
+  update(
+    @CurrentTherapist() therapist: { therapistId: string },
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(updatePatientSchema)) body: z.infer<typeof updatePatientSchema>,
+  ) {
+    return this.patientsService.update(therapist.therapistId, id, body);
   }
 
   @Post()

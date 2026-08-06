@@ -51,6 +51,11 @@ export const createPatientSchema = z.object({
 
 export type CreatePatientInput = z.infer<typeof createPatientSchema>;
 
+/** RF004 — atualização de cadastro (mesmos campos do create). */
+export const updatePatientSchema = createPatientSchema;
+
+export type UpdatePatientInput = z.infer<typeof updatePatientSchema>;
+
 export const listPatientsQuerySchema = z.object({
   search: z.string().trim().optional(),
   gender: z.enum(GENDER_VALUES).optional(),

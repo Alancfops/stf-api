@@ -75,6 +75,35 @@ describe('PatientsService', () => {
     expect(result.fullName).toBe('Maria Silva');
   });
 
+  it('atualiza paciente do therapist dono', async () => {
+    prisma.patient.findFirst.mockResolvedValue({ id: 'patient-1' });
+    prisma.patient.update.mockResolvedValue({
+      id: 'patient-1',
+      fullName: 'Maria Silva Atualizada',
+      age: 73,
+      gender: 'feminino',
+      contact: '(82) 9 1111-2222',
+      schoolingBand: '5_8_anos',
+      avatarUrl: null,
+      createdAt: new Date('2026-07-21T19:00:00.000Z'),
+    });
+
+    const result = await service.update('therapist-1', 'patient-1', {
+      fullName: 'Maria Silva Atualizada',
+      age: 73,
+      gender: 'feminino',
+      contact: '(82) 9 1111-2222',
+      schoolingBand: '5_8_anos',
+    });
+
+    expect(prisma.patient.findFirst).toHaveBeenCalledWith({
+      where: { id: 'patient-1', therapistId: 'therapist-1' },
+      select: { id: true },
+    });
+    expect(result.fullName).toBe('Maria Silva Atualizada');
+    expect(result.age).toBe(73);
+  });
+
   it('lista pacientes filtrados por therapist_id', async () => {
     const createdAt = new Date('2026-07-21T19:00:00.000Z');
     prisma.patient.count.mockResolvedValue(1);

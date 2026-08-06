@@ -12,6 +12,14 @@ import {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  if (process.env.NODE_ENV !== 'production') {
+    app.enableCors({
+      origin: true,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+    });
+  }
+
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
   app.useGlobalFilters(new FallbackExceptionFilter(), new HttpExceptionFilter());

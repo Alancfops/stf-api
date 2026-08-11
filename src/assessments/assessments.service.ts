@@ -64,6 +64,7 @@ export type RecentActivityItem = {
   id: string;
   patientId: string;
   patientName: string;
+  patientGender: string;
   instrumentCode: string;
   instrumentDisplayName: string;
   finalizedAt: string;
@@ -325,7 +326,7 @@ export class AssessmentsService {
       orderBy: { finalizedAt: 'desc' },
       take: safeLimit,
       include: {
-        patient: { select: { id: true, fullName: true } },
+        patient: { select: { id: true, fullName: true, gender: true } },
         instrument: { select: { displayName: true } },
         result: true,
       },
@@ -337,6 +338,7 @@ export class AssessmentsService {
           id: assessment.id,
           patientId: assessment.patientId,
           patientName: assessment.patient.fullName,
+          patientGender: assessment.patient.gender,
           instrumentCode: assessment.instrumentCode,
           instrumentDisplayName: assessment.instrument.displayName,
           finalizedAt: assessment.finalizedAt!.toISOString(),

@@ -12,6 +12,11 @@ import {
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
+  // Avatar em base64 no JSON (Zod ~350 KB) ultrapassa o default do Express (100 KB).
+  // Folga para metadados do JSON sem aceitar fotos enormes (Zod continua no teto de ~250 KB).
+  app.useBodyParser('json', { limit: '1mb' });
+  app.useBodyParser('urlencoded', { limit: '1mb', extended: true });
+
   if (process.env.NODE_ENV !== 'production') {
     app.enableCors({
       origin: true,

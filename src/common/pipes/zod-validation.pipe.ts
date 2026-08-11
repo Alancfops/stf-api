@@ -13,9 +13,10 @@ export class ZodValidationPipe implements PipeTransform {
   transform(value: unknown, _metadata: ArgumentMetadata) {
     const parsed = this.schema.safeParse(value);
     if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0]?.message ?? 'Dados inválidos.';
       throw new BadRequestException({
         statusCode: 400,
-        message: 'Dados inválidos.',
+        message: firstIssue,
         details: parsed.error.issues.map((issue) => ({
           path: issue.path.join('.'),
           issue: issue.message,

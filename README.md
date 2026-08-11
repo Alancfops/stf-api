@@ -9,7 +9,7 @@ Na **raiz do monorepo** (recomendado):
 ```bash
 make setup      # primeira vez: deps, .env, Postgres
 make migrate    # migrations Prisma
-make start      # instala deps + Postgres + API + Expo
+make start      # Postgres + API + Expo
 ```
 
 Só a API (watch):

@@ -33,6 +33,26 @@ export class FallbackExceptionFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
+    const payloadTooLarge =
+      typeof error === 'object' &&
+      error !== null &&
+      (('type' in error && (error as { type?: string }).type === 'entity.too.large') ||
+        ('status' in error && (error as { status?: number }).status === 413) ||
+        (error instanceof Error && /request entity too large/i.test(error.message)));
+
+    if (payloadTooLarge) {
+      response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
+        statusCode: HttpStatus.PAYLOAD_TOO_LARGE,
+        message: 'Imagem muito grande. Use uma foto menor (máx. ~250 KB).',
+      });
+      return;
+    }
+
+    if (process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console -- diagnóstico em dev (evita 500 opaco)
+      console.error('[FallbackExceptionFilter]', error);
+    }
+
     response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
       message: 'Erro interno do servidor.',

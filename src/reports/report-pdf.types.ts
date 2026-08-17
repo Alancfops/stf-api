@@ -29,6 +29,7 @@ export type ReportPdfData = {
     referenceLabel: string;
     interpretation: string;
     notesObservation?: string | null;
+    difficultyHighlight?: string | null;
   };
   evolution: {
     canShowChart: boolean;

@@ -185,6 +185,24 @@ function renderInterpretationBlock(doc: PdfDoc, data: ReportPdfData): void {
   renderFullRow(doc, 'Classificação clínica', assessment.classificationLabel);
   renderFullRow(doc, 'Referência utilizada', assessment.referenceLabel);
 
+  if (assessment.difficultyHighlight) {
+    doc.moveDown(0.15);
+    resetCursorX(doc);
+    doc
+      .font('Helvetica-Bold')
+      .fontSize(9.5)
+      .fillColor(REPORT_PDF_COLORS.muted)
+      .text('Foco clínico');
+
+    doc.moveDown(0.25);
+    resetCursorX(doc);
+    doc
+      .font('Helvetica')
+      .fontSize(9.5)
+      .fillColor(REPORT_PDF_COLORS.text)
+      .text(assessment.difficultyHighlight, { width: contentWidth(doc), lineGap: 3 });
+  }
+
   doc.moveDown(0.15);
   resetCursorX(doc);
   doc
@@ -199,6 +217,9 @@ function renderInterpretationBlock(doc: PdfDoc, data: ReportPdfData): void {
 function renderEvolutionBlock(doc: PdfDoc, data: ReportPdfData): void {
   const { evolution, patient, assessment } = data;
   const chartTitle = `Evolução — ${assessment.instrumentName} — ${patient.fullName}`;
+
+  ensureSpace(doc, 210);
+  resetCursorX(doc);
 
   doc
     .font('Helvetica-Bold')
@@ -229,6 +250,8 @@ function renderEvolutionBlock(doc: PdfDoc, data: ReportPdfData): void {
     return;
   }
 
+  ensureSpace(doc, 168);
+  resetCursorX(doc);
   renderEvolutionChart(doc, evolution.points, evolution.yAxisLabel);
 
   const chartLegend =
@@ -255,6 +278,7 @@ function renderEvolutionChart(
   points: ReportTimeseriesPoint[],
   yAxisLabel: string,
 ): void {
+  resetCursorX(doc);
   const chartX = doc.x;
   const chartY = doc.y;
   const chartWidth = contentWidth(doc);

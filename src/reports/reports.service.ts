@@ -57,6 +57,7 @@ export class ReportsService {
     const reportData = mapAssessmentToReportPdfData(
       {
         ...assessment,
+        payload: assessment.payload,
         result: assessment.result,
       },
       timeseries,

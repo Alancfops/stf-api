@@ -12,6 +12,7 @@ import {
   formatSchoolingLabel,
   SCHOOLING_LABELS,
 } from './report-pdf.constants';
+import { buildReportDifficultyHighlight } from './report-difficulty.util';
 import type { ReportPdfData, ReportTimeseriesPoint } from './report-pdf.types';
 
 type AssessmentWithRelations = {
@@ -21,6 +22,7 @@ type AssessmentWithRelations = {
   finalizedAt: Date | null;
   schoolingBandUsed: string | null;
   notesObservation: string | null;
+  payload: Prisma.JsonValue;
   result: {
     rawValue: Prisma.Decimal;
     rawLabel: string;
@@ -95,6 +97,10 @@ export function mapAssessmentToReportPdfData(
       referenceLabel: buildReferenceLabel(instrumentCode, meta),
       interpretation: result.classificationLabel,
       notesObservation: assessment.notesObservation,
+      difficultyHighlight: buildReportDifficultyHighlight(
+        instrumentCode,
+        asRecord(assessment.payload),
+      ),
     },
     evolution: {
       canShowChart: timeseries.canShowChart,

@@ -259,9 +259,36 @@ export class AssessmentsService {
 
     await this.assertPatientOwned(therapistId, patientId);
 
+    return this.buildTimeseries(patientId, instrumentCode);
+  }
+
+  async getTimeseriesForPatient(
+    patientId: string,
+    instrumentCodeInput: string,
+  ): Promise<TimeseriesResponse> {
+    const instrumentCode = normalizeInstrumentCode(instrumentCodeInput);
+    if (!instrumentCode) {
+      throw new BadRequestException('Instrumento inválido.');
+    }
+
+    const patient = await this.prisma.patient.findUnique({
+      where: { id: patientId },
+      select: { id: true },
+    });
+
+    if (!patient) {
+      throw new NotFoundException('Paciente não encontrado.');
+    }
+
+    return this.buildTimeseries(patientId, instrumentCode);
+  }
+
+  private async buildTimeseries(
+    patientId: string,
+    instrumentCode: InstrumentCode,
+  ): Promise<TimeseriesResponse> {
     const assessments = await this.prisma.assessment.findMany({
       where: {
-        therapistId,
         patientId,
         instrumentCode,
         status: AssessmentStatus.FINALIZED,

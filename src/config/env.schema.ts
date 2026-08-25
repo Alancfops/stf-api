@@ -13,6 +13,7 @@ export const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   GMAIL_USER: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
+  CORS_ORIGINS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -23,6 +23,18 @@ async function bootstrap() {
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
     });
+  } else {
+    const corsOrigins = process.env.CORS_ORIGINS?.split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+
+    if (corsOrigins?.length) {
+      app.enableCors({
+        origin: corsOrigins,
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+      });
+    }
   }
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });

@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { TherapistRole } from '@prisma/client';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 
 import { Env } from '../config/env.schema';
@@ -9,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 type JwtPayload = {
   sub: string;
   email: string;
+  role?: TherapistRole;
 };
 
 @Injectable()
@@ -27,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     const therapist = await this.prisma.therapist.findUnique({
       where: { id: payload.sub },
-      select: { id: true, email: true },
+      select: { id: true, email: true, role: true },
     });
 
     if (!therapist) {
@@ -37,6 +39,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     return {
       therapistId: therapist.id,
       email: therapist.email,
+      role: therapist.role,
     };
   }
 }

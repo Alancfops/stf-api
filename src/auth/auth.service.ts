@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { TherapistRole } from '@prisma/client';
 
 import { Env } from '../config/env.schema';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -30,6 +31,7 @@ import {
 type AuthUser = {
   fullName: string;
   email: string;
+  role: TherapistRole;
 };
 
 type AuthResponse = {
@@ -72,6 +74,7 @@ export class AuthService implements OnModuleInit {
     return this.buildAuthResponse(therapist.id, {
       fullName: therapist.fullName,
       email: therapist.email,
+      role: therapist.role,
     });
   }
 
@@ -93,6 +96,7 @@ export class AuthService implements OnModuleInit {
     return this.buildAuthResponse(therapist.id, {
       fullName: therapist.fullName,
       email: therapist.email,
+      role: therapist.role,
     });
   }
 
@@ -222,7 +226,7 @@ export class AuthService implements OnModuleInit {
     user: AuthUser,
   ): AuthResponse {
     const accessToken = this.jwtService.sign(
-      { sub: therapistId, email: user.email },
+      { sub: therapistId, email: user.email, role: user.role },
       {
         secret: this.config.get('JWT_ACCESS_SECRET'),
         expiresIn: this.config.get('JWT_ACCESS_EXPIRES_IN'),

@@ -1,8 +1,10 @@
+import { TherapistRole } from '@prisma/client';
 import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 export type AuthenticatedTherapist = {
   therapistId: string;
   email: string;
+  role: TherapistRole;
 };
 
 export const CurrentTherapist = createParamDecorator(

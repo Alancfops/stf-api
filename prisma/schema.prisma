@@ -12,18 +12,49 @@ enum AssessmentStatus {
   FINALIZED
 }
 
+enum TherapistRole {
+  THERAPIST
+  ADMIN
+}
+
+enum AdminAuditAction {
+  DELETE_PATIENT
+  TRANSFER_PATIENT
+  DELETE_THERAPIST
+  DOWNLOAD_REPORT
+}
+
 model Therapist {
-  id           String   @id @default(uuid()) @db.Uuid
-  email        String   @unique
-  fullName     String   @map("full_name")
-  passwordHash String   @map("password_hash")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  id           String        @id @default(uuid()) @db.Uuid
+  email        String        @unique
+  fullName     String        @map("full_name")
+  passwordHash String        @map("password_hash")
+  role         TherapistRole @default(THERAPIST)
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
   passwordResetTokens PasswordResetToken[]
   patients            Patient[]
   assessments         Assessment[]
+  adminAuditLogs      AdminAuditLog[]
 
   @@map("therapists")
+}
+
+model AdminAuditLog {
+  id         String           @id @default(uuid()) @db.Uuid
+  adminId    String           @map("admin_id") @db.Uuid
+  action     AdminAuditAction
+  targetType String           @map("target_type")
+  targetId   String           @map("target_id") @db.Uuid
+  metadata   Json             @default("{}")
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  admin Therapist @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@index([createdAt(sort: Desc)])
+  @@map("admin_audit_logs")
 }
 
 model Patient {

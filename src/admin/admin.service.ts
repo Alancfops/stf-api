@@ -43,7 +43,12 @@ export class AdminService {
         skip: (query.page - 1) * query.limit,
         take: query.limit,
         include: {
-          _count: { select: { patients: true, assessments: true } },
+          _count: {
+            select: {
+              patients: true,
+              assessments: { where: { status: AssessmentStatus.FINALIZED } },
+            },
+          },
           assessments: {
             where: { status: AssessmentStatus.FINALIZED, finalizedAt: { not: null } },
             orderBy: { finalizedAt: 'desc' },
@@ -80,11 +85,20 @@ export class AdminService {
     const therapist = await this.prisma.therapist.findUnique({
       where: { id },
       include: {
-        _count: { select: { patients: true, assessments: true } },
+        _count: {
+          select: {
+            patients: true,
+            assessments: { where: { status: AssessmentStatus.FINALIZED } },
+          },
+        },
         patients: {
           orderBy: { fullName: 'asc' },
           include: {
-            _count: { select: { assessments: true } },
+            _count: {
+              select: {
+                assessments: { where: { status: AssessmentStatus.FINALIZED } },
+              },
+            },
             assessments: {
               where: { status: AssessmentStatus.FINALIZED, finalizedAt: { not: null } },
               orderBy: { finalizedAt: 'desc' },
@@ -190,7 +204,7 @@ export class AdminService {
     const assessments = await this.prisma.assessment.findMany({
       where: {
         patientId,
-        ...(query.status ? { status: query.status } : {}),
+        status: AssessmentStatus.FINALIZED,
         ...(query.instrumentCode ? { instrumentCode: query.instrumentCode } : {}),
       },
       include: {
@@ -344,17 +358,62 @@ export class AdminService {
 
     const totalPages = total === 0 ? 0 : Math.ceil(total / query.limit);
 
+    const downloadLogsMissingMeta = logs.filter((log) => {
+      if (log.action !== AdminAuditAction.DOWNLOAD_REPORT) return false;
+      const meta = log.metadata as Record<string, unknown>;
+      return !meta.patientName || !meta.instrumentCode;
+    });
+
+    const assessmentById = new Map<
+      string,
+      { patientName: string; instrumentCode: string; finalizedAt: string | null }
+    >();
+
+    if (downloadLogsMissingMeta.length > 0) {
+      const assessments = await this.prisma.assessment.findMany({
+        where: { id: { in: downloadLogsMissingMeta.map((log) => log.targetId) } },
+        select: {
+          id: true,
+          instrumentCode: true,
+          finalizedAt: true,
+          patient: { select: { fullName: true } },
+        },
+      });
+      for (const assessment of assessments) {
+        assessmentById.set(assessment.id, {
+          patientName: assessment.patient.fullName,
+          instrumentCode: assessment.instrumentCode,
+          finalizedAt: assessment.finalizedAt?.toISOString() ?? null,
+        });
+      }
+    }
+
     return {
-      data: logs.map((log) => ({
-        id: log.id,
-        adminId: log.adminId,
-        adminName: log.admin.fullName,
-        action: log.action,
-        targetType: log.targetType,
-        targetId: log.targetId,
-        metadata: log.metadata as Record<string, unknown>,
-        createdAt: log.createdAt.toISOString(),
-      })),
+      data: logs.map((log) => {
+        let metadata = log.metadata as Record<string, unknown>;
+        if (log.action === AdminAuditAction.DOWNLOAD_REPORT) {
+          const fallback = assessmentById.get(log.targetId);
+          if (fallback) {
+            metadata = {
+              ...metadata,
+              patientName: metadata.patientName ?? fallback.patientName,
+              instrumentCode: metadata.instrumentCode ?? fallback.instrumentCode,
+              finalizedAt: metadata.finalizedAt ?? fallback.finalizedAt,
+            };
+          }
+        }
+
+        return {
+          id: log.id,
+          adminId: log.adminId,
+          adminName: log.admin.fullName,
+          action: log.action,
+          targetType: log.targetType,
+          targetId: log.targetId,
+          metadata,
+          createdAt: log.createdAt.toISOString(),
+        };
+      }),
       meta: {
         page: query.page,
         limit: query.limit,
@@ -365,7 +424,7 @@ export class AdminService {
   }
 
   async logReportDownload(adminId: string, assessmentId: string): Promise<void> {
-    await this.audit.log(adminId, AdminAuditAction.DOWNLOAD_REPORT, 'Assessment', assessmentId);
+    await this.audit.logReportDownload(adminId, assessmentId);
   }
 
   private async assertPatientExists(patientId: string): Promise<void> {

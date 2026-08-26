@@ -26,4 +26,23 @@ export class AdminAuditService {
       },
     });
   }
+
+  /** Registra download de PDF (admin ou fisioterapeuta). */
+  async logReportDownload(actorId: string, assessmentId: string): Promise<void> {
+    const assessment = await this.prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      select: {
+        instrumentCode: true,
+        finalizedAt: true,
+        patient: { select: { id: true, fullName: true } },
+      },
+    });
+
+    await this.log(actorId, AdminAuditAction.DOWNLOAD_REPORT, 'Assessment', assessmentId, {
+      patientId: assessment?.patient.id ?? null,
+      patientName: assessment?.patient.fullName ?? null,
+      instrumentCode: assessment?.instrumentCode ?? null,
+      finalizedAt: assessment?.finalizedAt?.toISOString() ?? null,
+    });
+  }
 }

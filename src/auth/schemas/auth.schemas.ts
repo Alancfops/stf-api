@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TherapistRole } from '@prisma/client';
 
 export const fullNameSchema = z
   .string()
@@ -42,10 +43,14 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Informe a senha.'),
+  /** Mobile omite. Gerenciador web envia ADMIN para não autenticar a conta THERAPIST. */
+  role: z.nativeEnum(TherapistRole).optional(),
 });
 
 export const forgotPasswordSchema = z.object({
   email: emailSchema,
+  /** Mobile omite (THERAPIST). Gerenciador web envia ADMIN. */
+  role: z.nativeEnum(TherapistRole).optional(),
 });
 
 export const resetTokenSchema = z
@@ -56,12 +61,24 @@ export const resetTokenSchema = z
 export const verifyResetCodeSchema = z.object({
   email: emailSchema,
   token: resetTokenSchema,
+  role: z.nativeEnum(TherapistRole).optional(),
 });
 
 export const resetPasswordSchema = z.object({
   email: emailSchema,
   token: resetTokenSchema,
   password: passwordSchema,
+  role: z.nativeEnum(TherapistRole).optional(),
+});
+
+export const adminAccessRequestSchema = z.object({
+  email: emailSchema,
+  fullName: fullNameSchema,
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, 'Informe a senha atual.'),
+  newPassword: passwordSchema,
 });
 
 export type RegisterInput = z.infer<typeof registerSchema>;
@@ -69,3 +86,5 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 export type VerifyResetCodeInput = z.infer<typeof verifyResetCodeSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type AdminAccessRequestInput = z.infer<typeof adminAccessRequestSchema>;
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;

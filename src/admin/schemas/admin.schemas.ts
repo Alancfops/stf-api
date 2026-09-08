@@ -28,7 +28,12 @@ export const listAuditLogsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 
+export const listAccessRequestsQuerySchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).default('PENDING'),
+});
+
 export type ListTherapistsQuery = z.infer<typeof listTherapistsQuerySchema>;
 export type ListPatientAssessmentsQuery = z.infer<typeof listPatientAssessmentsQuerySchema>;
 export type TransferPatientInput = z.infer<typeof transferPatientSchema>;
 export type ListAuditLogsQuery = z.infer<typeof listAuditLogsQuerySchema>;
+export type ListAccessRequestsQuery = z.infer<typeof listAccessRequestsQuerySchema>;

@@ -1,15 +1,32 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { AdminAuditAction, AssessmentStatus, Prisma, TherapistRole } from '@prisma/client';
+import { ConfigService } from '@nestjs/config';
+import {
+  AdminAccessRequestStatus,
+  AdminAuditAction,
+  AssessmentStatus,
+  Prisma,
+  TherapistRole,
+} from '@prisma/client';
 
 import { AssessmentsService } from '../assessments/assessments.service';
+import {
+  generateTempPassword,
+  hashPassword,
+  TEMP_PASSWORD_TTL_MS,
+} from '../auth/auth.crypto';
+import { Env } from '../config/env.schema';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminAuditService } from './admin-audit.service';
 import {
+  ListAccessRequestsQuery,
   ListAuditLogsQuery,
   ListPatientAssessmentsQuery,
   ListTherapistsQuery,
@@ -22,6 +39,8 @@ export class AdminService {
     private readonly prisma: PrismaService,
     private readonly audit: AdminAuditService,
     private readonly assessmentsService: AssessmentsService,
+    private readonly notifications: NotificationsService,
+    private readonly config: ConfigService<Env, true>,
   ) {}
 
   async listTherapists(query: ListTherapistsQuery) {
@@ -167,7 +186,11 @@ export class AdminService {
         AdminAuditAction.DELETE_THERAPIST,
         'Therapist',
         id,
-        { email: therapist.email },
+        {
+          therapistName: therapist.fullName,
+          fullName: therapist.fullName,
+          email: therapist.email,
+        },
         tx,
       );
     });
@@ -250,7 +273,7 @@ export class AdminService {
   async deletePatient(adminId: string, patientId: string): Promise<void> {
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
-      select: { id: true },
+      select: { id: true, fullName: true },
     });
 
     if (!patient) {
@@ -264,7 +287,7 @@ export class AdminService {
         AdminAuditAction.DELETE_PATIENT,
         'Patient',
         patientId,
-        {},
+        { patientName: patient.fullName },
         tx,
       );
     });
@@ -273,7 +296,7 @@ export class AdminService {
   async transferPatient(adminId: string, patientId: string, input: TransferPatientInput) {
     const patient = await this.prisma.patient.findUnique({
       where: { id: patientId },
-      select: { id: true, therapistId: true },
+      select: { id: true, therapistId: true, fullName: true },
     });
 
     if (!patient) {
@@ -312,6 +335,7 @@ export class AdminService {
         'Patient',
         patientId,
         {
+          patientName: patient.fullName,
           fromTherapistId,
           toTherapistId: input.targetTherapistId,
         },
@@ -361,12 +385,17 @@ export class AdminService {
     const downloadLogsMissingMeta = logs.filter((log) => {
       if (log.action !== AdminAuditAction.DOWNLOAD_REPORT) return false;
       const meta = log.metadata as Record<string, unknown>;
-      return !meta.patientName || !meta.instrumentCode;
+      return !meta.patientName || !meta.instrumentCode || !meta.patientId;
     });
 
     const assessmentById = new Map<
       string,
-      { patientName: string; instrumentCode: string; finalizedAt: string | null }
+      {
+        patientId: string;
+        patientName: string;
+        instrumentCode: string;
+        finalizedAt: string | null;
+      }
     >();
 
     if (downloadLogsMissingMeta.length > 0) {
@@ -376,15 +405,33 @@ export class AdminService {
           id: true,
           instrumentCode: true,
           finalizedAt: true,
-          patient: { select: { fullName: true } },
+          patient: { select: { id: true, fullName: true } },
         },
       });
       for (const assessment of assessments) {
         assessmentById.set(assessment.id, {
+          patientId: assessment.patient.id,
           patientName: assessment.patient.fullName,
           instrumentCode: assessment.instrumentCode,
           finalizedAt: assessment.finalizedAt?.toISOString() ?? null,
         });
+      }
+    }
+
+    const patientLogsMissingName = logs.filter((log) => {
+      if (log.targetType !== 'Patient') return false;
+      const meta = log.metadata as Record<string, unknown>;
+      return !meta.patientName;
+    });
+
+    const patientNameById = new Map<string, string>();
+    if (patientLogsMissingName.length > 0) {
+      const patients = await this.prisma.patient.findMany({
+        where: { id: { in: patientLogsMissingName.map((log) => log.targetId) } },
+        select: { id: true, fullName: true },
+      });
+      for (const patient of patients) {
+        patientNameById.set(patient.id, patient.fullName);
       }
     }
 
@@ -396,10 +443,18 @@ export class AdminService {
           if (fallback) {
             metadata = {
               ...metadata,
+              patientId: metadata.patientId ?? fallback.patientId,
               patientName: metadata.patientName ?? fallback.patientName,
               instrumentCode: metadata.instrumentCode ?? fallback.instrumentCode,
               finalizedAt: metadata.finalizedAt ?? fallback.finalizedAt,
             };
+          }
+        }
+
+        if (log.targetType === 'Patient' && !metadata.patientName) {
+          const name = patientNameById.get(log.targetId);
+          if (name) {
+            metadata = { ...metadata, patientName: name };
           }
         }
 
@@ -423,8 +478,174 @@ export class AdminService {
     };
   }
 
+  async listAccessRequests(adminId: string, query: ListAccessRequestsQuery) {
+    await this.assertCanManageAccessRequests(adminId);
+    const status = query.status as AdminAccessRequestStatus;
+    const requests = await this.prisma.adminAccessRequest.findMany({
+      where: { status },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        resolvedBy: { select: { id: true, fullName: true, email: true } },
+      },
+    });
+
+    return {
+      data: requests.map((request) => ({
+        id: request.id,
+        email: request.email,
+        fullName: request.fullName,
+        status: request.status,
+        createdAt: request.createdAt.toISOString(),
+        resolvedAt: request.resolvedAt?.toISOString() ?? null,
+        resolvedBy: request.resolvedBy
+          ? {
+              id: request.resolvedBy.id,
+              fullName: request.resolvedBy.fullName,
+              email: request.resolvedBy.email,
+            }
+          : null,
+      })),
+    };
+  }
+
+  async approveAccessRequest(adminId: string, requestId: string) {
+    await this.assertCanManageAccessRequests(adminId);
+
+    const request = await this.prisma.adminAccessRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Solicitação não encontrada.');
+    }
+
+    if (request.status !== AdminAccessRequestStatus.PENDING) {
+      throw new ConflictException('Esta solicitação já foi resolvida.');
+    }
+
+    const existingAdmin = await this.prisma.therapist.findUnique({
+      where: {
+        email_role: { email: request.email, role: TherapistRole.ADMIN },
+      },
+      select: { id: true },
+    });
+
+    if (existingAdmin) {
+      throw new ConflictException(
+        'Já existe uma conta administrativa com este e-mail. Não é possível aprovar a solicitação.',
+      );
+    }
+
+    // Conta THERAPIST (mobile) com o mesmo e-mail é permitida — cria ADMIN separado.
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+    const now = new Date();
+    const tempPasswordExpiresAt = new Date(now.getTime() + TEMP_PASSWORD_TTL_MS);
+
+    const therapist = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.therapist.create({
+        data: {
+          email: request.email,
+          fullName: request.fullName,
+          passwordHash,
+          role: TherapistRole.ADMIN,
+          mustChangePassword: true,
+          tempPasswordExpiresAt,
+        },
+      });
+
+      await tx.adminAccessRequest.update({
+        where: { id: request.id },
+        data: {
+          status: AdminAccessRequestStatus.APPROVED,
+          resolvedAt: now,
+          resolvedById: adminId,
+        },
+      });
+
+      return created;
+    });
+
+    try {
+      await this.notifications.sendAdminTempPasswordEmail(request.email, {
+        fullName: request.fullName,
+        tempPassword,
+      });
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Conta criada, mas não foi possível enviar o e-mail com a senha temporária.',
+      );
+    }
+
+    return {
+      id: therapist.id,
+      email: therapist.email,
+      fullName: therapist.fullName,
+      role: therapist.role,
+      mustChangePassword: therapist.mustChangePassword,
+      tempPasswordExpiresAt: therapist.tempPasswordExpiresAt?.toISOString() ?? null,
+      createdAt: therapist.createdAt.toISOString(),
+    };
+  }
+
+  async rejectAccessRequest(adminId: string, requestId: string) {
+    await this.assertCanManageAccessRequests(adminId);
+
+    const request = await this.prisma.adminAccessRequest.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request) {
+      throw new NotFoundException('Solicitação não encontrada.');
+    }
+
+    if (request.status !== AdminAccessRequestStatus.PENDING) {
+      throw new ConflictException('Esta solicitação já foi resolvida.');
+    }
+
+    const updated = await this.prisma.adminAccessRequest.update({
+      where: { id: requestId },
+      data: {
+        status: AdminAccessRequestStatus.REJECTED,
+        resolvedAt: new Date(),
+        resolvedById: adminId,
+      },
+    });
+
+    return {
+      id: updated.id,
+      email: updated.email,
+      fullName: updated.fullName,
+      status: updated.status,
+      resolvedAt: updated.resolvedAt!.toISOString(),
+    };
+  }
+
   async logReportDownload(adminId: string, assessmentId: string): Promise<void> {
     await this.audit.logReportDownload(adminId, assessmentId);
+  }
+
+  private async assertCanManageAccessRequests(adminId: string): Promise<void> {
+    const managerEmail = this.config.get('ADMIN_ACCESS_MANAGER_EMAIL')?.toLowerCase();
+    if (!managerEmail) {
+      throw new ForbiddenException(
+        'Gestão de solicitações de acesso não está configurada neste ambiente.',
+      );
+    }
+
+    const admin = await this.prisma.therapist.findUnique({
+      where: { id: adminId },
+      select: { email: true },
+    });
+
+    if (!admin || admin.email.toLowerCase() !== managerEmail) {
+      throw new ForbiddenException(
+        'Apenas o administrador bootstrap pode gerenciar solicitações de acesso.',
+      );
+    }
   }
 
   private async assertPatientExists(patientId: string): Promise<void> {

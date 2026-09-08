@@ -1,10 +1,14 @@
-import { Body, Controller, Post } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 
+import { CurrentTherapist } from '../common/decorators/current-therapist.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { AuthService } from './auth.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
 import {
+  adminAccessRequestSchema,
+  changePasswordSchema,
   forgotPasswordSchema,
   loginSchema,
   registerSchema,
@@ -27,6 +31,30 @@ export class AuthController {
   @ApiOperation({ summary: 'RF002 — Login do fisioterapeuta' })
   login(@Body(new ZodValidationPipe(loginSchema)) body: z.infer<typeof loginSchema>) {
     return this.authService.login(body);
+  }
+
+  @Post('admin-access-request')
+  @ApiOperation({ summary: 'Solicitar acesso administrativo (público)' })
+  requestAdminAccess(
+    @Body(new ZodValidationPipe(adminAccessRequestSchema))
+    body: z.infer<typeof adminAccessRequestSchema>,
+  ) {
+    return this.authService.requestAdminAccess(body);
+  }
+
+  @Post('change-password')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary:
+      'Alterar senha no gerenciador (ADMIN); limpa mustChangePassword após senha temporária',
+  })
+  changePassword(
+    @CurrentTherapist() user: { therapistId: string },
+    @Body(new ZodValidationPipe(changePasswordSchema))
+    body: z.infer<typeof changePasswordSchema>,
+  ) {
+    return this.authService.changePassword(user.therapistId, body);
   }
 
   @Post('forgot-password')

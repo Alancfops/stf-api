@@ -14,6 +14,19 @@ export const envSchema = z.object({
   GMAIL_USER: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
   CORS_ORIGINS: z.string().optional(),
+  /** Destinatário notificado quando há nova solicitação de acesso admin (opcional). */
+  ADMIN_ACCESS_REQUEST_TO: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().trim().email().optional(),
+  ),
+  /**
+   * Único e-mail autorizado a listar/aprovar/rejeitar solicitações de acesso admin.
+   * Em produção/dev local: admin.dev@gmail.com (bootstrap).
+   */
+  ADMIN_ACCESS_MANAGER_EMAIL: z.preprocess(
+    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+    z.string().trim().email().optional(),
+  ),
 });
 
 export type Env = z.infer<typeof envSchema>;

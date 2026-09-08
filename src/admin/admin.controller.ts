@@ -23,6 +23,7 @@ import { ReportsService } from '../reports/reports.service';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import {
+  listAccessRequestsQuerySchema,
   listAuditLogsQuerySchema,
   listPatientAssessmentsQuerySchema,
   listTherapistsQuerySchema,
@@ -38,6 +39,34 @@ export class AdminController {
     private readonly adminService: AdminService,
     private readonly reportsService: ReportsService,
   ) {}
+
+  @Get('access-requests')
+  @ApiOperation({ summary: 'Lista solicitações de acesso admin (só bootstrap)' })
+  listAccessRequests(
+    @CurrentTherapist() admin: { therapistId: string },
+    @Query(new ZodValidationPipe(listAccessRequestsQuerySchema))
+    query: z.infer<typeof listAccessRequestsQuerySchema>,
+  ) {
+    return this.adminService.listAccessRequests(admin.therapistId, query);
+  }
+
+  @Post('access-requests/:id/approve')
+  @ApiOperation({ summary: 'Aprova solicitação — cria ADMIN com senha temporária' })
+  approveAccessRequest(
+    @CurrentTherapist() admin: { therapistId: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.adminService.approveAccessRequest(admin.therapistId, id);
+  }
+
+  @Post('access-requests/:id/reject')
+  @ApiOperation({ summary: 'Rejeita solicitação de acesso admin' })
+  rejectAccessRequest(
+    @CurrentTherapist() admin: { therapistId: string },
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.adminService.rejectAccessRequest(admin.therapistId, id);
+  }
 
   @Get('therapists')
   @ApiOperation({ summary: 'GW002 — Lista fisioterapeutas (escopo admin)' })

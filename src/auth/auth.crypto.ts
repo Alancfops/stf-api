@@ -2,6 +2,8 @@ import { createHash, randomInt } from 'node:crypto';
 
 import * as argon2 from 'argon2';
 
+import { passwordSchema } from './schemas/auth.schemas';
+
 export async function hashPassword(plain: string): Promise<string> {
   return argon2.hash(plain, { type: argon2.argon2id });
 }
@@ -21,7 +23,37 @@ export function generateResetToken(): string {
   return randomInt(100_000, 1_000_000).toString();
 }
 
+/** Senha temporária criptograficamente aleatória que satisfaz passwordSchema. */
+export function generateTempPassword(): string {
+  const UPPER = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const LOWER = 'abcdefghjkmnpqrstuvwxyz';
+  const DIGITS = '23456789';
+
+  const chars = [
+    UPPER[randomInt(UPPER.length)],
+    UPPER[randomInt(UPPER.length)],
+    LOWER[randomInt(LOWER.length)],
+    LOWER[randomInt(LOWER.length)],
+    DIGITS[randomInt(DIGITS.length)],
+    DIGITS[randomInt(DIGITS.length)],
+    DIGITS[randomInt(DIGITS.length)],
+    DIGITS[randomInt(DIGITS.length)],
+  ];
+
+  for (let i = chars.length - 1; i > 0; i -= 1) {
+    const j = randomInt(i + 1);
+    [chars[i], chars[j]] = [chars[j], chars[i]];
+  }
+
+  const password = chars.join('');
+  passwordSchema.parse(password);
+  return password;
+}
+
 export const RESET_TOKEN_TTL_MS = 10 * 60 * 1000;
+
+/** Senha temporária do gerenciador web (ADMIN) — 5 minutos. */
+export const TEMP_PASSWORD_TTL_MS = 5 * 60 * 1000;
 
 /** RF003 — retenção máxima no banco (tokens expirados/consumidos). */
 export const RESET_TOKEN_RETENTION_MS = 24 * 60 * 60 * 1000;

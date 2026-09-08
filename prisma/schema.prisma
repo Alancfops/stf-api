@@ -24,20 +24,49 @@ enum AdminAuditAction {
   DOWNLOAD_REPORT
 }
 
+enum AdminAccessRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Therapist {
-  id           String        @id @default(uuid()) @db.Uuid
-  email        String        @unique
-  fullName     String        @map("full_name")
-  passwordHash String        @map("password_hash")
-  role         TherapistRole @default(THERAPIST)
-  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  id                 String        @id @default(uuid()) @db.Uuid
+  email              String
+  fullName           String        @map("full_name")
+  passwordHash       String        @map("password_hash")
+  role               TherapistRole @default(THERAPIST)
+  mustChangePassword Boolean       @default(false) @map("must_change_password")
+  /// Expira a senha temporária do gerenciador (ADMIN); null = sem senha temp ativa.
+  tempPasswordExpiresAt DateTime?  @map("temp_password_expires_at") @db.Timestamptz(6)
+  createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
   passwordResetTokens PasswordResetToken[]
   patients            Patient[]
   assessments         Assessment[]
   adminAuditLogs      AdminAuditLog[]
+  resolvedAccessRequests AdminAccessRequest[] @relation("AccessRequestResolver")
 
+  /// Permite o mesmo e-mail como THERAPIST (mobile) e ADMIN (gerenciador), contas distintas.
+  @@unique([email, role])
+  @@index([email])
   @@map("therapists")
+}
+
+model AdminAccessRequest {
+  id           String                   @id @default(uuid()) @db.Uuid
+  email        String
+  fullName     String                   @map("full_name")
+  status       AdminAccessRequestStatus @default(PENDING)
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt   DateTime?                @map("resolved_at") @db.Timestamptz(6)
+  resolvedById String?                  @map("resolved_by_id") @db.Uuid
+
+  resolvedBy Therapist? @relation("AccessRequestResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([email])
+  @@map("admin_access_requests")
 }
 
 model AdminAuditLog {

@@ -12,6 +12,7 @@ describe('AuthService', () => {
   let prisma: {
     therapist: {
       findUnique: jest.Mock;
+      findMany: jest.Mock;
       create: jest.Mock;
       update: jest.Mock;
     };
@@ -22,14 +23,23 @@ describe('AuthService', () => {
       update: jest.Mock;
       deleteMany: jest.Mock;
     };
+    adminAccessRequest: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+    };
     $transaction: jest.Mock;
   };
-  let notifications: { sendPasswordResetCode: jest.Mock };
+  let notifications: {
+    sendPasswordResetCode: jest.Mock;
+    sendAccessRequestNotification: jest.Mock;
+    sendAdminTempPasswordEmail: jest.Mock;
+  };
 
   beforeEach(async () => {
     prisma = {
       therapist: {
         findUnique: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
       },
@@ -40,11 +50,17 @@ describe('AuthService', () => {
         update: jest.fn(),
         deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
       },
+      adminAccessRequest: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
+      },
       $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
     };
 
     notifications = {
       sendPasswordResetCode: jest.fn(),
+      sendAccessRequestNotification: jest.fn(),
+      sendAdminTempPasswordEmail: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -83,20 +99,57 @@ describe('AuthService', () => {
   });
 
   it('rejeita login com senha inválida', async () => {
-    prisma.therapist.findUnique.mockResolvedValue({
-      id: 'id-1',
-      email: 'a@b.com',
-      fullName: 'Maria',
-      passwordHash: await hashPassword('Abcd1234'),
-    });
+    prisma.therapist.findMany.mockResolvedValue([
+      {
+        id: 'id-1',
+        email: 'a@b.com',
+        fullName: 'Maria',
+        passwordHash: await hashPassword('Abcd1234'),
+        mustChangePassword: false,
+        role: 'THERAPIST',
+      },
+    ]);
 
     await expect(
       service.login({ email: 'a@b.com', password: 'wrongpass1' }),
     ).rejects.toThrow('E-mail ou senha inválidos.');
   });
 
-  it('forgot-password responde genericamente mesmo sem usuário', async () => {
+  it('requestAdminAccess responde genericamente e cria solicitação', async () => {
     prisma.therapist.findUnique.mockResolvedValue(null);
+    prisma.adminAccessRequest.findFirst.mockResolvedValue(null);
+    prisma.adminAccessRequest.create.mockResolvedValue({ id: 'req-1' });
+
+    await expect(
+      service.requestAdminAccess({
+        email: 'novo@admin.com',
+        fullName: 'Novo Admin',
+      }),
+    ).resolves.toEqual({
+      message: 'Se os dados forem válidos, sua solicitação será analisada.',
+    });
+
+    expect(prisma.adminAccessRequest.create).toHaveBeenCalled();
+  });
+
+  it('requestAdminAccess não cria duplicata PENDING', async () => {
+    prisma.therapist.findUnique.mockResolvedValue(null);
+    prisma.adminAccessRequest.findFirst.mockResolvedValue({ id: 'req-1' });
+
+    await expect(
+      service.requestAdminAccess({
+        email: 'novo@admin.com',
+        fullName: 'Novo Admin',
+      }),
+    ).resolves.toEqual({
+      message: 'Se os dados forem válidos, sua solicitação será analisada.',
+    });
+
+    expect(prisma.adminAccessRequest.create).not.toHaveBeenCalled();
+  });
+
+  it('forgot-password responde genericamente mesmo sem usuário', async () => {
+    prisma.therapist.findMany.mockResolvedValue([]);
 
     await expect(
       service.forgotPassword({ email: 'missing@b.com' }),
@@ -110,7 +163,9 @@ describe('AuthService', () => {
   });
 
   it('reset-password invalida token incorreto', async () => {
-    prisma.therapist.findUnique.mockResolvedValue({ id: 'id-1', email: 'a@b.com' });
+    prisma.therapist.findMany.mockResolvedValue([
+      { id: 'id-1', email: 'a@b.com', role: 'THERAPIST' },
+    ]);
     prisma.passwordResetToken.findFirst.mockResolvedValue(null);
 
     await expect(

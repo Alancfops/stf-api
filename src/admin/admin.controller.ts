@@ -17,12 +17,14 @@ import { z } from 'zod';
 
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentTherapist } from '../common/decorators/current-therapist.decorator';
+import type { AuthenticatedTherapist } from '../common/decorators/current-therapist.decorator';
 import { ZodValidationPipe } from '../common/pipes/zod-validation.pipe';
 import { toContentDispositionValue } from '../reports/report-filename.util';
 import { ReportsService } from '../reports/reports.service';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import {
+  createManagerAccountSchema,
   listAccessRequestsQuerySchema,
   listAuditLogsQuerySchema,
   listPatientAssessmentsQuerySchema,
@@ -41,56 +43,72 @@ export class AdminController {
   ) {}
 
   @Get('access-requests')
-  @ApiOperation({ summary: 'Lista solicitações de acesso admin (só bootstrap)' })
+  @ApiOperation({ summary: 'Lista solicitações de acesso admin (ADMIN/SUPER_ADMIN)' })
   listAccessRequests(
-    @CurrentTherapist() admin: { therapistId: string },
+    @CurrentTherapist() admin: AuthenticatedTherapist,
     @Query(new ZodValidationPipe(listAccessRequestsQuerySchema))
     query: z.infer<typeof listAccessRequestsQuerySchema>,
   ) {
-    return this.adminService.listAccessRequests(admin.therapistId, query);
+    return this.adminService.listAccessRequests(admin.therapistId, admin.role, query);
   }
 
   @Post('access-requests/:id/approve')
-  @ApiOperation({ summary: 'Aprova solicitação — cria ADMIN com senha temporária' })
+  @ApiOperation({ summary: 'Aprova solicitação — cria ASSISTANT com senha temporária' })
   approveAccessRequest(
-    @CurrentTherapist() admin: { therapistId: string },
+    @CurrentTherapist() admin: AuthenticatedTherapist,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.adminService.approveAccessRequest(admin.therapistId, id);
+    return this.adminService.approveAccessRequest(admin.therapistId, id, admin.role);
   }
 
   @Post('access-requests/:id/reject')
   @ApiOperation({ summary: 'Rejeita solicitação de acesso admin' })
   rejectAccessRequest(
-    @CurrentTherapist() admin: { therapistId: string },
+    @CurrentTherapist() admin: AuthenticatedTherapist,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.adminService.rejectAccessRequest(admin.therapistId, id);
+    return this.adminService.rejectAccessRequest(admin.therapistId, id, admin.role);
+  }
+
+  @Post('therapists')
+  @ApiOperation({
+    summary: 'Super admin cria conta de professora (ADMIN) com senha temporária',
+  })
+  createManagerAccount(
+    @CurrentTherapist() admin: AuthenticatedTherapist,
+    @Body(new ZodValidationPipe(createManagerAccountSchema))
+    body: z.infer<typeof createManagerAccountSchema>,
+  ) {
+    return this.adminService.createManagerAccount(admin.role, admin.therapistId, body);
   }
 
   @Get('therapists')
   @ApiOperation({ summary: 'GW002 — Lista fisioterapeutas (escopo admin)' })
   listTherapists(
+    @CurrentTherapist() admin: AuthenticatedTherapist,
     @Query(new ZodValidationPipe(listTherapistsQuerySchema))
     query: z.infer<typeof listTherapistsQuerySchema>,
   ) {
-    return this.adminService.listTherapists(query);
+    return this.adminService.listTherapists(query, admin.role);
   }
 
   @Get('therapists/:id')
   @ApiOperation({ summary: 'GW003 — Detalhe do fisioterapeuta + pacientes' })
-  getTherapist(@Param('id', ParseUUIDPipe) id: string) {
-    return this.adminService.getTherapist(id);
+  getTherapist(
+    @CurrentTherapist() admin: AuthenticatedTherapist,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.adminService.getTherapist(id, admin.role);
   }
 
   @Delete('therapists/:id')
   @HttpCode(204)
   @ApiOperation({ summary: 'GW006 — Exclui conta de fisioterapeuta' })
   deleteTherapist(
-    @CurrentTherapist() admin: { therapistId: string },
+    @CurrentTherapist() admin: AuthenticatedTherapist,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.adminService.deleteTherapist(admin.therapistId, id);
+    return this.adminService.deleteTherapist(admin.therapistId, id, admin.role);
   }
 
   @Get('patients/:id')
@@ -166,7 +184,7 @@ export class AdminController {
   }
 
   @Get('audit-logs')
-  @ApiOperation({ summary: 'GW010 — Trilha de auditoria administrativa' })
+  @ApiOperation({ summary: 'GW010 — Trilha de auditoria administrativa (leitura para qualquer role web)' })
   listAuditLogs(
     @Query(new ZodValidationPipe(listAuditLogsQuerySchema))
     query: z.infer<typeof listAuditLogsQuerySchema>,

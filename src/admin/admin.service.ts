@@ -6,7 +6,6 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import {
   AdminAccessRequestStatus,
   AdminAuditAction,
@@ -16,22 +15,21 @@ import {
 } from '@prisma/client';
 
 import { AssessmentsService } from '../assessments/assessments.service';
-import {
-  generateTempPassword,
-  hashPassword,
-  TEMP_PASSWORD_TTL_MS,
-} from '../auth/auth.crypto';
-import { Env } from '../config/env.schema';
+import { generateTempPassword, hashPassword } from '../auth/auth.crypto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AdminAuditService } from './admin-audit.service';
 import {
+  CreateManagerAccountInput,
   ListAccessRequestsQuery,
   ListAuditLogsQuery,
   ListPatientAssessmentsQuery,
   ListTherapistsQuery,
   TransferPatientInput,
 } from './schemas/admin.schemas';
+
+/** Roles que ADMIN (professora) pode ver/gerenciar. */
+const ADMIN_SCOPED_ROLES: TherapistRole[] = [TherapistRole.ASSISTANT, TherapistRole.THERAPIST];
 
 @Injectable()
 export class AdminService {
@@ -40,19 +38,37 @@ export class AdminService {
     private readonly audit: AdminAuditService,
     private readonly assessmentsService: AssessmentsService,
     private readonly notifications: NotificationsService,
-    private readonly config: ConfigService<Env, true>,
   ) {}
 
-  async listTherapists(query: ListTherapistsQuery) {
+  async listTherapists(query: ListTherapistsQuery, requesterRole: TherapistRole) {
     const search = query.search?.trim();
-    const where: Prisma.TherapistWhereInput = search
-      ? {
-          OR: [
-            { fullName: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-          ],
-        }
-      : {};
+
+    let roleFilter: Prisma.TherapistWhereInput['role'];
+    if (requesterRole === TherapistRole.SUPER_ADMIN) {
+      roleFilter = query.role;
+    } else if (requesterRole === TherapistRole.ADMIN) {
+      if (query.role && !ADMIN_SCOPED_ROLES.includes(query.role)) {
+        throw new ForbiddenException('Fora do escopo de gestão desta conta.');
+      }
+      roleFilter = query.role ?? { in: ADMIN_SCOPED_ROLES };
+    } else {
+      if (query.role && query.role !== TherapistRole.THERAPIST) {
+        throw new ForbiddenException('Fora do escopo de gestão desta conta.');
+      }
+      roleFilter = TherapistRole.THERAPIST;
+    }
+
+    const where: Prisma.TherapistWhereInput = {
+      ...(search
+        ? {
+            OR: [
+              { fullName: { contains: search, mode: 'insensitive' } },
+              { email: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+      ...(roleFilter !== undefined ? { role: roleFilter } : {}),
+    };
 
     const [total, therapists] = await Promise.all([
       this.prisma.therapist.count({ where }),
@@ -100,7 +116,7 @@ export class AdminService {
     };
   }
 
-  async getTherapist(id: string) {
+  async getTherapist(id: string, requesterRole: TherapistRole) {
     const therapist = await this.prisma.therapist.findUnique({
       where: { id },
       include: {
@@ -133,6 +149,8 @@ export class AdminService {
       throw new NotFoundException('Fisioterapeuta não encontrado.');
     }
 
+    this.assertTherapistInScope(therapist.role, requesterRole);
+
     return {
       id: therapist.id,
       fullName: therapist.fullName,
@@ -154,7 +172,11 @@ export class AdminService {
     };
   }
 
-  async deleteTherapist(adminId: string, id: string): Promise<void> {
+  async deleteTherapist(
+    adminId: string,
+    id: string,
+    requesterRole: TherapistRole,
+  ): Promise<void> {
     const therapist = await this.prisma.therapist.findUnique({
       where: { id },
       include: { _count: { select: { patients: true } } },
@@ -164,18 +186,22 @@ export class AdminService {
       throw new NotFoundException('Fisioterapeuta não encontrado.');
     }
 
+    this.assertTherapistInScope(therapist.role, requesterRole);
+
     if (therapist._count.patients > 0) {
       throw new ConflictException(
         `Este fisioterapeuta ainda possui ${therapist._count.patients} paciente(s). Transfira ou exclua os pacientes antes de remover a conta.`,
       );
     }
 
-    if (therapist.role === TherapistRole.ADMIN) {
-      const adminCount = await this.prisma.therapist.count({
-        where: { role: TherapistRole.ADMIN },
+    if (therapist.role === TherapistRole.SUPER_ADMIN) {
+      const superAdminCount = await this.prisma.therapist.count({
+        where: { role: TherapistRole.SUPER_ADMIN },
       });
-      if (adminCount <= 1) {
-        throw new ConflictException('Não é possível remover o único administrador do sistema.');
+      if (superAdminCount <= 1) {
+        throw new ConflictException(
+          'Não é possível remover o único super administrador do sistema.',
+        );
       }
     }
 
@@ -478,8 +504,12 @@ export class AdminService {
     };
   }
 
-  async listAccessRequests(adminId: string, query: ListAccessRequestsQuery) {
-    await this.assertCanManageAccessRequests(adminId);
+  async listAccessRequests(
+    adminId: string,
+    requesterRole: TherapistRole,
+    query: ListAccessRequestsQuery,
+  ) {
+    this.assertCanManageAccessRequests(requesterRole);
     const status = query.status as AdminAccessRequestStatus;
     const requests = await this.prisma.adminAccessRequest.findMany({
       where: { status },
@@ -508,8 +538,8 @@ export class AdminService {
     };
   }
 
-  async approveAccessRequest(adminId: string, requestId: string) {
-    await this.assertCanManageAccessRequests(adminId);
+  async approveAccessRequest(adminId: string, requestId: string, requesterRole: TherapistRole) {
+    this.assertCanManageAccessRequests(requesterRole);
 
     const request = await this.prisma.adminAccessRequest.findUnique({
       where: { id: requestId },
@@ -523,24 +553,23 @@ export class AdminService {
       throw new ConflictException('Esta solicitação já foi resolvida.');
     }
 
-    const existingAdmin = await this.prisma.therapist.findUnique({
+    const existingAssistant = await this.prisma.therapist.findUnique({
       where: {
-        email_role: { email: request.email, role: TherapistRole.ADMIN },
+        email_role: { email: request.email, role: TherapistRole.ASSISTANT },
       },
       select: { id: true },
     });
 
-    if (existingAdmin) {
+    if (existingAssistant) {
       throw new ConflictException(
         'Já existe uma conta administrativa com este e-mail. Não é possível aprovar a solicitação.',
       );
     }
 
-    // Conta THERAPIST (mobile) com o mesmo e-mail é permitida — cria ADMIN separado.
+    // Conta THERAPIST (mobile) com o mesmo e-mail é permitida — cria ASSISTANT separado.
     const tempPassword = generateTempPassword();
     const passwordHash = await hashPassword(tempPassword);
     const now = new Date();
-    const tempPasswordExpiresAt = new Date(now.getTime() + TEMP_PASSWORD_TTL_MS);
 
     const therapist = await this.prisma.$transaction(async (tx) => {
       const created = await tx.therapist.create({
@@ -548,9 +577,8 @@ export class AdminService {
           email: request.email,
           fullName: request.fullName,
           passwordHash,
-          role: TherapistRole.ADMIN,
+          role: TherapistRole.ASSISTANT,
           mustChangePassword: true,
-          tempPasswordExpiresAt,
         },
       });
 
@@ -562,6 +590,15 @@ export class AdminService {
           resolvedById: adminId,
         },
       });
+
+      await this.audit.log(
+        adminId,
+        AdminAuditAction.CREATE_THERAPIST,
+        'Therapist',
+        created.id,
+        { fullName: created.fullName, email: created.email, role: created.role },
+        tx,
+      );
 
       return created;
     });
@@ -586,13 +623,88 @@ export class AdminService {
       fullName: therapist.fullName,
       role: therapist.role,
       mustChangePassword: therapist.mustChangePassword,
-      tempPasswordExpiresAt: therapist.tempPasswordExpiresAt?.toISOString() ?? null,
       createdAt: therapist.createdAt.toISOString(),
     };
   }
 
-  async rejectAccessRequest(adminId: string, requestId: string) {
-    await this.assertCanManageAccessRequests(adminId);
+  /** Super admin cria conta de professora (ADMIN) diretamente, sem passar pelo fluxo de solicitação. */
+  async createManagerAccount(
+    requesterRole: TherapistRole,
+    adminId: string,
+    input: CreateManagerAccountInput,
+  ) {
+    if (requesterRole !== TherapistRole.SUPER_ADMIN) {
+      throw new ForbiddenException(
+        'Apenas o super administrador pode criar contas de professora.',
+      );
+    }
+
+    const email = input.email.toLowerCase();
+    const fullName = input.fullName.trim();
+
+    const existingAdmin = await this.prisma.therapist.findUnique({
+      where: {
+        email_role: { email, role: TherapistRole.ADMIN },
+      },
+      select: { id: true },
+    });
+
+    if (existingAdmin) {
+      throw new ConflictException('Já existe uma conta de professora com este e-mail.');
+    }
+
+    const tempPassword = generateTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+
+    const therapist = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.therapist.create({
+        data: {
+          email,
+          fullName,
+          passwordHash,
+          role: TherapistRole.ADMIN,
+          mustChangePassword: true,
+        },
+      });
+
+      await this.audit.log(
+        adminId,
+        AdminAuditAction.CREATE_THERAPIST,
+        'Therapist',
+        created.id,
+        { fullName: created.fullName, email: created.email, role: created.role },
+        tx,
+      );
+
+      return created;
+    });
+
+    try {
+      await this.notifications.sendAdminTempPasswordEmail(email, {
+        fullName,
+        tempPassword,
+      });
+    } catch (error) {
+      if (error instanceof InternalServerErrorException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        'Conta criada, mas não foi possível enviar o e-mail com a senha temporária.',
+      );
+    }
+
+    return {
+      id: therapist.id,
+      email: therapist.email,
+      fullName: therapist.fullName,
+      role: therapist.role,
+      mustChangePassword: therapist.mustChangePassword,
+      createdAt: therapist.createdAt.toISOString(),
+    };
+  }
+
+  async rejectAccessRequest(adminId: string, requestId: string, requesterRole: TherapistRole) {
+    this.assertCanManageAccessRequests(requesterRole);
 
     const request = await this.prisma.adminAccessRequest.findUnique({
       where: { id: requestId },
@@ -628,24 +740,34 @@ export class AdminService {
     await this.audit.logReportDownload(adminId, assessmentId);
   }
 
-  private async assertCanManageAccessRequests(adminId: string): Promise<void> {
-    const managerEmail = this.config.get('ADMIN_ACCESS_MANAGER_EMAIL')?.toLowerCase();
-    if (!managerEmail) {
+  private assertCanManageAccessRequests(requesterRole: TherapistRole): void {
+    if (requesterRole !== TherapistRole.ADMIN && requesterRole !== TherapistRole.SUPER_ADMIN) {
       throw new ForbiddenException(
-        'Gestão de solicitações de acesso não está configurada neste ambiente.',
+        'Apenas administradores podem gerenciar solicitações de acesso.',
       );
     }
+  }
 
-    const admin = await this.prisma.therapist.findUnique({
-      where: { id: adminId },
-      select: { email: true },
-    });
-
-    if (!admin || admin.email.toLowerCase() !== managerEmail) {
-      throw new ForbiddenException(
-        'Apenas o administrador bootstrap pode gerenciar solicitações de acesso.',
-      );
+  /** ADMIN só vê/gerencia ASSISTANT + THERAPIST; ASSISTANT só vê/gerencia THERAPIST. */
+  private assertTherapistInScope(
+    targetRole: TherapistRole,
+    requesterRole: TherapistRole,
+  ): void {
+    if (requesterRole === TherapistRole.SUPER_ADMIN) {
+      return;
     }
+
+    if (requesterRole === TherapistRole.ADMIN) {
+      if (ADMIN_SCOPED_ROLES.includes(targetRole)) {
+        return;
+      }
+      throw new ForbiddenException('Fora do escopo de gestão desta conta.');
+    }
+
+    if (targetRole === TherapistRole.THERAPIST) {
+      return;
+    }
+    throw new ForbiddenException('Fora do escopo de gestão desta conta.');
   }
 
   private async assertPatientExists(patientId: string): Promise<void> {

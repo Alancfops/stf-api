@@ -27,7 +27,7 @@ async function seedAdmin() {
 
   await prisma.therapist.upsert({
     where: {
-      email_role: { email, role: TherapistRole.ADMIN },
+      email_role: { email, role: TherapistRole.SUPER_ADMIN },
     },
     update: {
       fullName,
@@ -37,11 +37,11 @@ async function seedAdmin() {
       email,
       fullName,
       passwordHash,
-      role: TherapistRole.ADMIN,
+      role: TherapistRole.SUPER_ADMIN,
     },
   });
 
-  // Remove apenas e-mails bootstrap legados — nunca apagar outros ADMIN aprovados.
+  // Remove apenas e-mails bootstrap legados — nunca apagar outros SUPER_ADMIN aprovados.
   const legacyEmails = [
     'admin@gmail.com',
     'admin@clinica.exemplo',
@@ -49,13 +49,13 @@ async function seedAdmin() {
 
   for (const legacyEmail of legacyEmails) {
     const legacy = await prisma.therapist.findUnique({
-      where: { email_role: { email: legacyEmail, role: TherapistRole.ADMIN } },
+      where: { email_role: { email: legacyEmail, role: TherapistRole.SUPER_ADMIN } },
       select: { id: true, email: true },
     });
     if (!legacy) continue;
 
     const seedAdminRow = await prisma.therapist.findUniqueOrThrow({
-      where: { email_role: { email, role: TherapistRole.ADMIN } },
+      where: { email_role: { email, role: TherapistRole.SUPER_ADMIN } },
       select: { id: true },
     });
 
@@ -67,7 +67,7 @@ async function seedAdmin() {
     console.log(`>> Admin legado removido: ${legacy.email}`);
   }
 
-  console.log(`>> Admin seed: ${email} (role=ADMIN)`);
+  console.log(`>> Admin seed: ${email} (role=SUPER_ADMIN)`);
 }
 
 async function seedLongNameDemo() {

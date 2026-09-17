@@ -52,6 +52,17 @@ type AuthResponse = {
 const ACCESS_REQUEST_GENERIC_MESSAGE =
   'Se os dados forem válidos, sua solicitação será analisada.';
 
+const WEB_MANAGER_ROLES: TherapistRole[] = [
+  TherapistRole.ASSISTANT,
+  TherapistRole.ADMIN,
+  TherapistRole.SUPER_ADMIN,
+];
+
+/** Contas do gerenciador web (ajudante/professora/super admin) — nunca THERAPIST (mobile). */
+function isWebManagerRole(role: TherapistRole): boolean {
+  return WEB_MANAGER_ROLES.includes(role);
+}
+
 @Injectable()
 export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
@@ -115,13 +126,40 @@ export class AuthService implements OnModuleInit {
         throw new UnauthorizedException('E-mail ou senha inválidos.');
       }
 
-      await this.assertAdminTempPasswordNotExpired(account);
-
       return this.buildAuthResponse(account.id, {
         fullName: account.fullName,
         email: account.email,
         role: account.role,
         mustChangePassword: account.mustChangePassword,
+      });
+    }
+
+    // Gerenciador web sem role definida (ex.: login genérico): restringe a
+    // ASSISTANT/ADMIN/SUPER_ADMIN, nunca autentica a conta THERAPIST (mobile).
+    if (input.panel === 'web') {
+      const webAccounts = await this.prisma.therapist.findMany({
+        where: { email, role: { in: WEB_MANAGER_ROLES } },
+      });
+
+      const webMatches: Therapist[] = [];
+      for (const account of webAccounts) {
+        const valid = await verifyPassword(account.passwordHash, input.password);
+        if (valid) {
+          webMatches.push(account);
+        }
+      }
+
+      if (webMatches.length === 0) {
+        throw new UnauthorizedException('E-mail ou senha inválidos.');
+      }
+
+      const webAccount = webMatches[0];
+
+      return this.buildAuthResponse(webAccount.id, {
+        fullName: webAccount.fullName,
+        email: webAccount.email,
+        role: webAccount.role,
+        mustChangePassword: webAccount.mustChangePassword,
       });
     }
 
@@ -152,8 +190,6 @@ export class AuthService implements OnModuleInit {
         : (matches.find((account) => account.role === TherapistRole.THERAPIST) ??
           matches[0]);
 
-    await this.assertAdminTempPasswordNotExpired(therapist);
-
     return this.buildAuthResponse(therapist.id, {
       fullName: therapist.fullName,
       email: therapist.email,
@@ -168,15 +204,15 @@ export class AuthService implements OnModuleInit {
     const email = input.email.toLowerCase();
     const fullName = input.fullName.trim();
 
-    const existingAdmin = await this.prisma.therapist.findUnique({
+    const existingAssistant = await this.prisma.therapist.findUnique({
       where: {
-        email_role: { email, role: TherapistRole.ADMIN },
+        email_role: { email, role: TherapistRole.ASSISTANT },
       },
       select: { id: true },
     });
 
-    // Já é ADMIN: não cria solicitação (resposta genérica).
-    if (existingAdmin) {
+    // Já é ASSISTANT: não cria solicitação (resposta genérica).
+    if (existingAssistant) {
       return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
     }
 
@@ -189,29 +225,10 @@ export class AuthService implements OnModuleInit {
       return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
     }
 
-    // THERAPIST (mobile) com o mesmo e-mail: permitido — approve cria ADMIN separado.
+    // THERAPIST (mobile) com o mesmo e-mail: permitido — approve cria ASSISTANT separado.
     await this.prisma.adminAccessRequest.create({
       data: { email, fullName },
     });
-
-    const notifyTo = this.config.get('ADMIN_ACCESS_REQUEST_TO');
-    if (notifyTo) {
-      try {
-        await this.notifications.sendAccessRequestNotification(notifyTo, {
-          email,
-          fullName,
-        });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this.logger.warn(
-          `Solicitação registrada, mas falhou notificação para o responsável: ${message}`,
-        );
-      }
-    } else {
-      this.logger.warn(
-        'ADMIN_ACCESS_REQUEST_TO não configurado — solicitação registrada sem e-mail ao responsável.',
-      );
-    }
 
     return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
   }
@@ -228,8 +245,8 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Sessão inválida. Faça login novamente.');
     }
 
-    // Senha temporária / troca obrigatória é só do gerenciador web (ADMIN).
-    if (therapist.role !== TherapistRole.ADMIN) {
+    // Senha temporária / troca obrigatória é só do gerenciador web (ASSISTANT/ADMIN/SUPER_ADMIN).
+    if (!isWebManagerRole(therapist.role)) {
       throw new ForbiddenException(
         'Alteração de senha autenticada é exclusiva do gerenciador web. No app mobile use a recuperação de senha.',
       );
@@ -243,15 +260,12 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Senha atual inválida.');
     }
 
-    await this.assertAdminTempPasswordNotExpired(therapist);
-
     const passwordHash = await hashPassword(input.newPassword);
     await this.prisma.therapist.update({
       where: { id: therapistId },
       data: {
         passwordHash,
         mustChangePassword: false,
-        tempPasswordExpiresAt: null,
       },
     });
 
@@ -265,6 +279,7 @@ export class AuthService implements OnModuleInit {
     const therapist = await this.resolveAccountForPasswordReset(
       email,
       input.role,
+      input.panel,
     );
 
     if (therapist) {
@@ -318,7 +333,7 @@ export class AuthService implements OnModuleInit {
   }
 
   async verifyResetCode(input: VerifyResetCodeInput): Promise<{ message: string }> {
-    await this.findValidResetToken(input.email, input.token, input.role);
+    await this.findValidResetToken(input.email, input.token, input.role, input.panel);
     return { message: 'Código válido.' };
   }
 
@@ -327,6 +342,7 @@ export class AuthService implements OnModuleInit {
       input.email,
       input.token,
       input.role,
+      input.panel,
     );
     const therapist = await this.prisma.therapist.findUniqueOrThrow({
       where: { id: resetToken.therapistId },
@@ -340,7 +356,6 @@ export class AuthService implements OnModuleInit {
         data: {
           passwordHash,
           mustChangePassword: false,
-          tempPasswordExpiresAt: null,
         },
       }),
       this.prisma.passwordResetToken.update({
@@ -353,49 +368,27 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Senha temporária do gerenciador (ADMIN + mustChangePassword) vale só TEMP_PASSWORD_TTL_MS.
-   */
-  private async assertAdminTempPasswordNotExpired(
-    account: Pick<
-      Therapist,
-      'id' | 'role' | 'mustChangePassword' | 'tempPasswordExpiresAt'
-    >,
-  ): Promise<void> {
-    if (account.role !== TherapistRole.ADMIN || !account.mustChangePassword) {
-      return;
-    }
-
-    const expiresAt = account.tempPasswordExpiresAt;
-    if (!expiresAt || expiresAt.getTime() > Date.now()) {
-      return;
-    }
-
-    // Invalida a flag para não reutilizar a senha temp após o prazo.
-    await this.prisma.therapist.update({
-      where: { id: account.id },
-      data: {
-        mustChangePassword: false,
-        tempPasswordExpiresAt: null,
-      },
-    });
-
-    throw new UnauthorizedException(
-      'Senha temporária expirada (válida por 5 minutos). Use “Esqueci minha senha” no gerenciador ou peça um novo acesso ao administrador.',
-    );
-  }
-
-  /**
-   * Contas com o mesmo e-mail: mobile = THERAPIST; gerenciador web = ADMIN.
-   * Sem `role` e com duas contas, prioriza THERAPIST (compatível com o app).
+   * Contas com o mesmo e-mail: mobile = THERAPIST; gerenciador web =
+   * ASSISTANT/ADMIN/SUPER_ADMIN. Sem `role`:
+   * - `panel === 'web'`: restringe às roles do gerenciador.
+   * - caso contrário, com duas contas, prioriza THERAPIST (compatível com o app).
    */
   private async resolveAccountForPasswordReset(
     email: string,
     role?: TherapistRole,
+    panel?: 'web',
   ): Promise<Therapist | null> {
     if (role) {
       return this.prisma.therapist.findUnique({
         where: { email_role: { email, role } },
       });
+    }
+
+    if (panel === 'web') {
+      const webAccounts = await this.prisma.therapist.findMany({
+        where: { email, role: { in: WEB_MANAGER_ROLES } },
+      });
+      return webAccounts[0] ?? null;
     }
 
     const accounts = await this.prisma.therapist.findMany({
@@ -420,10 +413,12 @@ export class AuthService implements OnModuleInit {
     email: string,
     token: string,
     role?: TherapistRole,
+    panel?: 'web',
   ) {
     const therapist = await this.resolveAccountForPasswordReset(
       email.toLowerCase(),
       role,
+      panel,
     );
 
     if (!therapist) {
@@ -463,21 +458,18 @@ export class AuthService implements OnModuleInit {
       mustChangePassword?: boolean;
     },
   ): AuthResponse {
-    const managerEmail = this.config.get('ADMIN_ACCESS_MANAGER_EMAIL')?.toLowerCase();
-    // mustChangePassword / senha temporária: somente ADMIN (gerenciador web).
-    const mustChangePassword =
-      user.role === TherapistRole.ADMIN
-        ? Boolean(user.mustChangePassword)
-        : false;
+    // mustChangePassword / senha temporária: somente contas do gerenciador web.
+    const mustChangePassword = isWebManagerRole(user.role)
+      ? Boolean(user.mustChangePassword)
+      : false;
 
     const authUser: AuthUser = {
       fullName: user.fullName,
       email: user.email,
       role: user.role,
       mustChangePassword,
-      canManageAccessRequests: Boolean(
-        managerEmail && user.email.toLowerCase() === managerEmail,
-      ),
+      canManageAccessRequests:
+        user.role === TherapistRole.ADMIN || user.role === TherapistRole.SUPER_ADMIN,
     };
 
     const accessToken = this.jwtService.sign(

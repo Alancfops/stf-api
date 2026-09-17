@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import { TherapistRole } from '@prisma/client';
+
+import { emailSchema, fullNameSchema } from '../../auth/schemas/auth.schemas';
 
 export const listTherapistsQuerySchema = z.object({
   search: z.string().optional(),
@@ -6,6 +9,7 @@ export const listTherapistsQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   sortBy: z.enum(['fullName', 'email', 'createdAt']).default('fullName'),
   sortOrder: z.enum(['asc', 'desc']).default('asc'),
+  role: z.nativeEnum(TherapistRole).optional(),
 });
 
 export const listPatientAssessmentsQuerySchema = z.object({
@@ -19,7 +23,13 @@ export const transferPatientSchema = z.object({
 
 export const listAuditLogsQuerySchema = z.object({
   action: z
-    .enum(['DELETE_PATIENT', 'TRANSFER_PATIENT', 'DELETE_THERAPIST', 'DOWNLOAD_REPORT'])
+    .enum([
+      'DELETE_PATIENT',
+      'TRANSFER_PATIENT',
+      'DELETE_THERAPIST',
+      'DOWNLOAD_REPORT',
+      'CREATE_THERAPIST',
+    ])
     .optional(),
   adminId: z.string().uuid().optional(),
   from: z.string().datetime().optional(),
@@ -32,8 +42,14 @@ export const listAccessRequestsQuerySchema = z.object({
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).default('PENDING'),
 });
 
+export const createManagerAccountSchema = z.object({
+  email: emailSchema,
+  fullName: fullNameSchema,
+});
+
 export type ListTherapistsQuery = z.infer<typeof listTherapistsQuerySchema>;
 export type ListPatientAssessmentsQuery = z.infer<typeof listPatientAssessmentsQuerySchema>;
 export type TransferPatientInput = z.infer<typeof transferPatientSchema>;
 export type ListAuditLogsQuery = z.infer<typeof listAuditLogsQuerySchema>;
 export type ListAccessRequestsQuery = z.infer<typeof listAccessRequestsQuerySchema>;
+export type CreateManagerAccountInput = z.infer<typeof createManagerAccountSchema>;

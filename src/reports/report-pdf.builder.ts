@@ -20,7 +20,7 @@ export async function buildReportPdf(data: ReportPdfData): Promise<Buffer> {
       info: {
         Title: `Relatório de Avaliação Funcional — ${data.assessment.instrumentName}`,
         Author: data.therapistName,
-        Subject: 'Senior Teste Funcional — RF013',
+        Subject: 'Sênior Teste Funcional — RF013',
       },
     });
 

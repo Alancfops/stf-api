@@ -1,4 +1,4 @@
-const BRAND = 'Senior Teste Funcional';
+const BRAND = 'Sênior Teste Funcional';
 
 export function buildAdminTempPasswordEmail(params: {
   fullName: string;
@@ -13,7 +13,7 @@ export function buildAdminTempPasswordEmail(params: {
     '',
     `Senha temporária (somente para o painel web): ${params.tempPassword}`,
     '',
-    'Esta senha é válida por 5 minutos. No primeiro login no gerenciador web você deverá alterá-la.',
+    'No primeiro login no gerenciador web você deverá alterá-la.',
     'Esta senha não é usada no app mobile. Se você também usa o app, a conta do mobile continua independente.',
     'Não compartilhe este e-mail. Se você não solicitou acesso, ignore esta mensagem.',
   ].join('\n');
@@ -40,9 +40,6 @@ export function buildAdminTempPasswordEmail(params: {
                 <p style="margin:0 0 8px;font-size:13px;color:#4A4A68;">Senha temporária (somente painel web):</p>
                 <p style="margin:0 0 16px;font-size:20px;font-weight:700;letter-spacing:2px;color:#3666E0;font-family:Consolas,Monaco,monospace;">
                   ${escapeHtml(params.tempPassword)}
-                </p>
-                <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#DC2626;font-weight:700;">
-                  Válida por 5 minutos.
                 </p>
                 <p style="margin:0 0 8px;font-size:14px;line-height:1.5;color:#4A4A68;">
                   No primeiro login no gerenciador você deverá <strong>alterar essa senha</strong>.

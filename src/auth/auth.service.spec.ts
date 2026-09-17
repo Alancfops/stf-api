@@ -31,7 +31,6 @@ describe('AuthService', () => {
   };
   let notifications: {
     sendPasswordResetCode: jest.Mock;
-    sendAccessRequestNotification: jest.Mock;
     sendAdminTempPasswordEmail: jest.Mock;
   };
 
@@ -59,7 +58,6 @@ describe('AuthService', () => {
 
     notifications = {
       sendPasswordResetCode: jest.fn(),
-      sendAccessRequestNotification: jest.fn(),
       sendAdminTempPasswordEmail: jest.fn(),
     };
 

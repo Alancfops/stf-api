@@ -39,7 +39,7 @@ loadEnvFile();
 
 process.env.MAIL_PROVIDER = 'console';
 process.env.RESEND_API_KEY = '';
-process.env.MAIL_FROM = 'Senior Teste Funcional <no-reply@localhost>';
+process.env.MAIL_FROM = 'Sênior Teste Funcional <no-reply@localhost>';
 
 const devDatabaseUrl = process.env.DATABASE_URL;
 if (!devDatabaseUrl) {

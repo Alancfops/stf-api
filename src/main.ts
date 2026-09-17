@@ -42,7 +42,7 @@ async function bootstrap() {
   app.useGlobalFilters(new FallbackExceptionFilter(), new HttpExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
-    .setTitle('Senior Teste Funcional API')
+    .setTitle('Sênior Teste Funcional API')
     .setDescription('API REST — RF001 em diante')
     .setVersion('0.1.0')
     .addBearerAuth()

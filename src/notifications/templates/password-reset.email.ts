@@ -1,4 +1,4 @@
-const BRAND = 'Senior Teste Funcional';
+const BRAND = 'Sênior Teste Funcional';
 
 export function buildPasswordResetEmail(code: string) {
   const subject = `${BRAND} — código de recuperação de senha`;

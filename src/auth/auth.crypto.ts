@@ -52,8 +52,5 @@ export function generateTempPassword(): string {
 
 export const RESET_TOKEN_TTL_MS = 10 * 60 * 1000;
 
-/** Senha temporária do gerenciador web (ADMIN) — 5 minutos. */
-export const TEMP_PASSWORD_TTL_MS = 5 * 60 * 1000;
-
 /** RF003 — retenção máxima no banco (tokens expirados/consumidos). */
 export const RESET_TOKEN_RETENTION_MS = 24 * 60 * 60 * 1000;

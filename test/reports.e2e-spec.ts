@@ -45,12 +45,14 @@ describe('Reports (e2e)', () => {
   });
 
   afterEach(async () => {
+    await prisma.adminAuditLog.deleteMany();
     await prisma.assessmentResult.deleteMany();
     await prisma.assessment.deleteMany();
     await prisma.patient.deleteMany();
   });
 
   afterAll(async () => {
+    await prisma.adminAuditLog.deleteMany();
     await prisma.assessmentResult.deleteMany();
     await prisma.assessment.deleteMany();
     await prisma.patient.deleteMany();

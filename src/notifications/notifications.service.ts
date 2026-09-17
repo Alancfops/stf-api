@@ -9,7 +9,6 @@ import nodemailer, { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
 
 import { Env } from '../config/env.schema';
-import { buildAccessRequestNotificationEmail } from './templates/access-request.email';
 import { buildAdminTempPasswordEmail } from './templates/admin-temp-password.email';
 import { buildPasswordResetEmail } from './templates/password-reset.email';
 
@@ -75,21 +74,6 @@ export class NotificationsService implements OnModuleInit {
       logLabel: 'password-reset',
       consoleIncludeBody: true,
       failureMessage: 'Não foi possível enviar o e-mail de recuperação.',
-    });
-  }
-
-  async sendAccessRequestNotification(
-    to: string,
-    payload: { email: string; fullName: string },
-  ): Promise<void> {
-    const { subject, text, html } = buildAccessRequestNotificationEmail(payload);
-    await this.dispatch({
-      to,
-      subject,
-      text,
-      html,
-      logLabel: 'access-request-notify',
-      consoleIncludeBody: true,
     });
   }
 

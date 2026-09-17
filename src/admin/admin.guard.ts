@@ -7,7 +7,12 @@ import { AuthenticatedTherapist } from '../common/decorators/current-therapist.d
 export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<{ user: AuthenticatedTherapist }>();
-    if (request.user?.role !== TherapistRole.ADMIN) {
+    const webRoles: TherapistRole[] = [
+      TherapistRole.ASSISTANT,
+      TherapistRole.ADMIN,
+      TherapistRole.SUPER_ADMIN,
+    ];
+    if (!request.user?.role || !webRoles.includes(request.user.role)) {
       throw new ForbiddenException('Acesso restrito a administradores.');
     }
     return true;

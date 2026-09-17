@@ -14,7 +14,9 @@ enum AssessmentStatus {
 
 enum TherapistRole {
   THERAPIST
+  ASSISTANT
   ADMIN
+  SUPER_ADMIN
 }
 
 enum AdminAuditAction {
@@ -22,6 +24,7 @@ enum AdminAuditAction {
   TRANSFER_PATIENT
   DELETE_THERAPIST
   DOWNLOAD_REPORT
+  CREATE_THERAPIST
 }
 
 enum AdminAccessRequestStatus {
@@ -37,8 +40,6 @@ model Therapist {
   passwordHash       String        @map("password_hash")
   role               TherapistRole @default(THERAPIST)
   mustChangePassword Boolean       @default(false) @map("must_change_password")
-  /// Expira a senha temporária do gerenciador (ADMIN); null = sem senha temp ativa.
-  tempPasswordExpiresAt DateTime?  @map("temp_password_expires_at") @db.Timestamptz(6)
   createdAt          DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
 
   passwordResetTokens PasswordResetToken[]

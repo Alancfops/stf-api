@@ -9,24 +9,11 @@ export const envSchema = z.object({
   MAIL_PROVIDER: z.enum(['console', 'gmail', 'resend']).default('gmail'),
   MAIL_FROM: z
     .string()
-    .default('Senior Teste Funcional <onboarding@resend.dev>'),
+    .default('Sênior Teste Funcional <onboarding@resend.dev>'),
   RESEND_API_KEY: z.string().optional(),
   GMAIL_USER: z.string().optional(),
   GMAIL_APP_PASSWORD: z.string().optional(),
   CORS_ORIGINS: z.string().optional(),
-  /** Destinatário notificado quando há nova solicitação de acesso admin (opcional). */
-  ADMIN_ACCESS_REQUEST_TO: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    z.string().trim().email().optional(),
-  ),
-  /**
-   * Único e-mail autorizado a listar/aprovar/rejeitar solicitações de acesso admin.
-   * Em produção/dev local: admin.dev@gmail.com (bootstrap).
-   */
-  ADMIN_ACCESS_MANAGER_EMAIL: z.preprocess(
-    (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
-    z.string().trim().email().optional(),
-  ),
 });
 
 export type Env = z.infer<typeof envSchema>;

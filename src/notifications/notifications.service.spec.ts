@@ -30,13 +30,13 @@ describe('NotificationsService', () => {
         ? {
             MAIL_PROVIDER: 'resend',
             RESEND_API_KEY: 're_test_key',
-            MAIL_FROM: 'Senior Teste Funcional <onboarding@resend.dev>',
+            MAIL_FROM: 'Sênior Teste Funcional <onboarding@resend.dev>',
           }
         : {
             MAIL_PROVIDER: 'gmail',
             GMAIL_USER: 'fisio@gmail.com',
             GMAIL_APP_PASSWORD: 'app-password-test',
-            MAIL_FROM: 'Senior Teste Funcional <fisio@gmail.com>',
+            MAIL_FROM: 'Sênior Teste Funcional <fisio@gmail.com>',
           };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -69,7 +69,7 @@ describe('NotificationsService', () => {
 
     expect(resendSendMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: 'Senior Teste Funcional <onboarding@resend.dev>',
+        from: 'Sênior Teste Funcional <onboarding@resend.dev>',
         to: 'fisio@email.com',
         subject: expect.stringContaining('código de recuperação'),
         text: expect.stringContaining('123456'),
@@ -96,7 +96,7 @@ describe('NotificationsService', () => {
 
     expect(gmailSendMailMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        from: 'Senior Teste Funcional <fisio@gmail.com>',
+        from: 'Sênior Teste Funcional <fisio@gmail.com>',
         to: 'aluno@email.com',
         subject: expect.stringContaining('código de recuperação'),
         text: expect.stringContaining('654321'),

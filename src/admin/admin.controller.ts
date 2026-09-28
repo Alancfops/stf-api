@@ -24,7 +24,6 @@ import { ReportsService } from '../reports/reports.service';
 import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 import {
-  createManagerAccountSchema,
   listAccessRequestsQuerySchema,
   listAuditLogsQuerySchema,
   listPatientAssessmentsQuerySchema,
@@ -43,7 +42,7 @@ export class AdminController {
   ) {}
 
   @Get('access-requests')
-  @ApiOperation({ summary: 'Lista solicitações de acesso admin (ADMIN/SUPER_ADMIN)' })
+  @ApiOperation({ summary: 'Lista solicitações de acesso admin (ADMIN)' })
   listAccessRequests(
     @CurrentTherapist() admin: AuthenticatedTherapist,
     @Query(new ZodValidationPipe(listAccessRequestsQuerySchema))
@@ -68,18 +67,6 @@ export class AdminController {
     @Param('id', ParseUUIDPipe) id: string,
   ) {
     return this.adminService.rejectAccessRequest(admin.therapistId, id, admin.role);
-  }
-
-  @Post('therapists')
-  @ApiOperation({
-    summary: 'Super admin cria conta de professora (ADMIN) com senha temporária',
-  })
-  createManagerAccount(
-    @CurrentTherapist() admin: AuthenticatedTherapist,
-    @Body(new ZodValidationPipe(createManagerAccountSchema))
-    body: z.infer<typeof createManagerAccountSchema>,
-  ) {
-    return this.adminService.createManagerAccount(admin.role, admin.therapistId, body);
   }
 
   @Get('therapists')

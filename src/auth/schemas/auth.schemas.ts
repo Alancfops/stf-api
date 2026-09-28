@@ -45,7 +45,7 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Informe a senha.'),
   /** Mobile omite. Gerenciador web envia ADMIN para não autenticar a conta THERAPIST. */
   role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN/SUPER_ADMIN). */
+  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
   panel: z.literal('web').optional(),
 });
 
@@ -53,7 +53,7 @@ export const forgotPasswordSchema = z.object({
   email: emailSchema,
   /** Mobile omite (THERAPIST). Gerenciador web envia ADMIN. */
   role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN/SUPER_ADMIN). */
+  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
   panel: z.literal('web').optional(),
 });
 
@@ -66,7 +66,7 @@ export const verifyResetCodeSchema = z.object({
   email: emailSchema,
   token: resetTokenSchema,
   role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN/SUPER_ADMIN). */
+  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
   panel: z.literal('web').optional(),
 });
 
@@ -75,7 +75,7 @@ export const resetPasswordSchema = z.object({
   token: resetTokenSchema,
   password: passwordSchema,
   role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN/SUPER_ADMIN). */
+  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
   panel: z.literal('web').optional(),
 });
 

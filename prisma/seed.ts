@@ -23,11 +23,22 @@ async function seedAdmin() {
   const password = process.env.ADMIN_SEED_PASSWORD ?? 'Admin1234';
   const fullName = process.env.ADMIN_SEED_FULL_NAME ?? 'Administrador';
 
+  // Modelo de professora única: não cria segunda conta ADMIN se já houver outra.
+  // Troca/recuperação da professora: `npm run admin:set` (scripts/set-admin.ts).
+  const otherAdmin = await prisma.therapist.findFirst({
+    where: { role: TherapistRole.ADMIN, email: { not: email } },
+    select: { email: true },
+  });
+  if (otherAdmin) {
+    console.log(`>> Admin seed ignorado: professora já definida (${otherAdmin.email})`);
+    return;
+  }
+
   const passwordHash = await hashPassword(password);
 
   await prisma.therapist.upsert({
     where: {
-      email_role: { email, role: TherapistRole.SUPER_ADMIN },
+      email_role: { email, role: TherapistRole.ADMIN },
     },
     update: {
       fullName,
@@ -37,37 +48,11 @@ async function seedAdmin() {
       email,
       fullName,
       passwordHash,
-      role: TherapistRole.SUPER_ADMIN,
+      role: TherapistRole.ADMIN,
     },
   });
 
-  // Remove apenas e-mails bootstrap legados — nunca apagar outros SUPER_ADMIN aprovados.
-  const legacyEmails = [
-    'admin@gmail.com',
-    'admin@clinica.exemplo',
-  ].filter((legacy) => legacy !== email);
-
-  for (const legacyEmail of legacyEmails) {
-    const legacy = await prisma.therapist.findUnique({
-      where: { email_role: { email: legacyEmail, role: TherapistRole.SUPER_ADMIN } },
-      select: { id: true, email: true },
-    });
-    if (!legacy) continue;
-
-    const seedAdminRow = await prisma.therapist.findUniqueOrThrow({
-      where: { email_role: { email, role: TherapistRole.SUPER_ADMIN } },
-      select: { id: true },
-    });
-
-    await prisma.adminAuditLog.updateMany({
-      where: { adminId: legacy.id },
-      data: { adminId: seedAdminRow.id },
-    });
-    await prisma.therapist.delete({ where: { id: legacy.id } });
-    console.log(`>> Admin legado removido: ${legacy.email}`);
-  }
-
-  console.log(`>> Admin seed: ${email} (role=SUPER_ADMIN)`);
+  console.log(`>> Admin seed: ${email} (role=ADMIN)`);
 }
 
 async function seedLongNameDemo() {

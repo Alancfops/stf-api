@@ -1,8 +1,6 @@
 import { z } from 'zod';
 import { TherapistRole } from '@prisma/client';
 
-import { emailSchema, fullNameSchema } from '../../auth/schemas/auth.schemas';
-
 export const listTherapistsQuerySchema = z.object({
   search: z.string().optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -42,14 +40,8 @@ export const listAccessRequestsQuerySchema = z.object({
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED']).default('PENDING'),
 });
 
-export const createManagerAccountSchema = z.object({
-  email: emailSchema,
-  fullName: fullNameSchema,
-});
-
 export type ListTherapistsQuery = z.infer<typeof listTherapistsQuerySchema>;
 export type ListPatientAssessmentsQuery = z.infer<typeof listPatientAssessmentsQuerySchema>;
 export type TransferPatientInput = z.infer<typeof transferPatientSchema>;
 export type ListAuditLogsQuery = z.infer<typeof listAuditLogsQuerySchema>;
 export type ListAccessRequestsQuery = z.infer<typeof listAccessRequestsQuerySchema>;
-export type CreateManagerAccountInput = z.infer<typeof createManagerAccountSchema>;

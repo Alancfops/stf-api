@@ -16,7 +16,6 @@ enum TherapistRole {
   THERAPIST
   ASSISTANT
   ADMIN
-  SUPER_ADMIN
 }
 
 enum AdminAuditAction {

@@ -16,7 +16,7 @@ describe('Admin (e2e)', () => {
   let adminId: string;
   let therapistAId: string;
   let therapistBId: string;
-  const superAdminEmail = 'super-admin-e2e@test.com';
+  const adminEmail = 'professora-e2e@test.com';
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -29,18 +29,18 @@ describe('Admin (e2e)', () => {
 
     const admin = await prisma.therapist.upsert({
       where: {
-        email_role: { email: superAdminEmail, role: TherapistRole.SUPER_ADMIN },
+        email_role: { email: adminEmail, role: TherapistRole.ADMIN },
       },
       update: {
-        fullName: 'Super Admin E2E',
+        fullName: 'Professora E2E',
         passwordHash: await hashPassword('Abcd1234'),
         mustChangePassword: false,
       },
       create: {
-        email: superAdminEmail,
-        fullName: 'Super Admin E2E',
+        email: adminEmail,
+        fullName: 'Professora E2E',
         passwordHash: await hashPassword('Abcd1234'),
-        role: TherapistRole.SUPER_ADMIN,
+        role: TherapistRole.ADMIN,
       },
     });
     adminId = admin.id;
@@ -65,11 +65,11 @@ describe('Admin (e2e)', () => {
 
     const adminLogin = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: superAdminEmail, password: 'Abcd1234', role: 'SUPER_ADMIN' })
+      .send({ email: adminEmail, password: 'Abcd1234', role: 'ADMIN' })
       .expect(201);
 
     adminToken = adminLogin.body.accessToken;
-    expect(adminLogin.body.user.role).toBe('SUPER_ADMIN');
+    expect(adminLogin.body.user.role).toBe('ADMIN');
     expect(adminLogin.body.user.canManageAccessRequests).toBe(true);
 
     const therapistLogin = await request(app.getHttpServer())
@@ -100,7 +100,7 @@ describe('Admin (e2e)', () => {
     await app.close();
   });
 
-  it('GET /admin/therapists exige role de gerenciador (ASSISTANT/ADMIN/SUPER_ADMIN)', async () => {
+  it('GET /admin/therapists exige role de gerenciador (ASSISTANT/ADMIN)', async () => {
     await request(app.getHttpServer())
       .get('/admin/therapists')
       .set('Authorization', `Bearer ${therapistToken}`)
@@ -111,8 +111,9 @@ describe('Admin (e2e)', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
 
-    expect(response.body.data.length).toBeGreaterThanOrEqual(3);
-    expect(response.body.meta.total).toBeGreaterThanOrEqual(3);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    expect(response.body.meta.total).toBeGreaterThanOrEqual(2);
+    expect(response.body.data.some((t: { id: string }) => t.id === adminId)).toBe(false);
   });
 
   it('POST /admin/patients/:id/transfer atualiza patient e assessments', async () => {
@@ -214,30 +215,14 @@ describe('Admin (e2e)', () => {
       .expect(404);
   });
 
-  it('DELETE /admin/therapists/:id bloqueia único super administrador', async () => {
+  it('DELETE /admin/therapists/:id não permite excluir a conta da professora (ADMIN)', async () => {
     await request(app.getHttpServer())
       .delete(`/admin/therapists/${adminId}`)
       .set('Authorization', `Bearer ${adminToken}`)
-      .expect(409);
-  });
+      .expect(403);
 
-  it('SUPER_ADMIN pode excluir conta ADMIN (professora) sem pacientes', async () => {
-    const manager = await prisma.therapist.create({
-      data: {
-        email: 'professora-descartavel@test.com',
-        fullName: 'Professora Descartável',
-        passwordHash: await hashPassword('Abcd1234'),
-        role: TherapistRole.ADMIN,
-      },
-    });
-
-    await request(app.getHttpServer())
-      .delete(`/admin/therapists/${manager.id}`)
-      .set('Authorization', `Bearer ${adminToken}`)
-      .expect(204);
-
-    const stored = await prisma.therapist.findUnique({ where: { id: manager.id } });
-    expect(stored).toBeNull();
+    const stored = await prisma.therapist.findUnique({ where: { id: adminId } });
+    expect(stored).not.toBeNull();
   });
 
   it('fluxo solicitação de acesso admin → approve → login mustChangePassword → change-password', async () => {
@@ -525,27 +510,6 @@ describe('Admin (e2e)', () => {
       });
     });
 
-    it('ADMIN não vê nem pode excluir SUPER_ADMIN (fora do escopo)', async () => {
-      const list = await request(app.getHttpServer())
-        .get('/admin/therapists')
-        .set('Authorization', `Bearer ${managerToken}`)
-        .expect(200);
-
-      expect(
-        list.body.data.some((t: { id: string }) => t.id === adminId),
-      ).toBe(false);
-
-      await request(app.getHttpServer())
-        .get(`/admin/therapists/${adminId}`)
-        .set('Authorization', `Bearer ${managerToken}`)
-        .expect(403);
-
-      await request(app.getHttpServer())
-        .delete(`/admin/therapists/${adminId}`)
-        .set('Authorization', `Bearer ${managerToken}`)
-        .expect(403);
-    });
-
     it('ADMIN não pode excluir outra conta ADMIN (fora do escopo)', async () => {
       await request(app.getHttpServer())
         .get(`/admin/therapists/${managerId}`)
@@ -610,60 +574,11 @@ describe('Admin (e2e)', () => {
     });
   });
 
-  describe('POST /admin/therapists (criação de contas ADMIN — só SUPER_ADMIN)', () => {
-    it('SUPER_ADMIN cria conta ADMIN (professora) com senha temporária', async () => {
-      const response = await request(app.getHttpServer())
-        .post('/admin/therapists')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({ email: 'nova-professora@test.com', fullName: 'Nova Professora' })
-        .expect(201);
-
-      expect(response.body.role).toBe('ADMIN');
-      expect(response.body.mustChangePassword).toBe(true);
-
-      const stored = await prisma.therapist.findUniqueOrThrow({
-        where: { email_role: { email: 'nova-professora@test.com', role: 'ADMIN' } },
-      });
-      expect(stored.mustChangePassword).toBe(true);
-
-      const auditEntry = await prisma.adminAuditLog.findFirst({
-        where: { action: 'CREATE_THERAPIST', targetId: stored.id },
-      });
-      expect(auditEntry).not.toBeNull();
-
-      await prisma.therapist.delete({ where: { id: stored.id } });
-    });
-
-    it('ADMIN (professora) não pode criar conta ADMIN', async () => {
-      const manager = await prisma.therapist.create({
-        data: {
-          email: 'professora-sem-permissao@test.com',
-          fullName: 'Professora Sem Permissão',
-          passwordHash: await hashPassword('Abcd1234'),
-          role: TherapistRole.ADMIN,
-        },
-      });
-
-      const login = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({ email: manager.email, password: 'Abcd1234', role: 'ADMIN' })
-        .expect(201);
-
-      await request(app.getHttpServer())
-        .post('/admin/therapists')
-        .set('Authorization', `Bearer ${login.body.accessToken}`)
-        .send({ email: 'outra-professora@test.com', fullName: 'Outra Professora' })
-        .expect(403);
-
-      await prisma.therapist.delete({ where: { id: manager.id } });
-    });
-
-    it('THERAPIST (mobile) não pode criar conta ADMIN', async () => {
-      await request(app.getHttpServer())
-        .post('/admin/therapists')
-        .set('Authorization', `Bearer ${therapistToken}`)
-        .send({ email: 'mais-uma-professora@test.com', fullName: 'Mais Uma Professora' })
-        .expect(403);
-    });
+  it('POST /admin/therapists não existe — conta ADMIN só via script admin:set', async () => {
+    await request(app.getHttpServer())
+      .post('/admin/therapists')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ email: 'nova-professora@test.com', fullName: 'Nova Professora' })
+      .expect(404);
   });
 });

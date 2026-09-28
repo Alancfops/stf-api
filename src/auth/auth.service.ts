@@ -52,13 +52,9 @@ type AuthResponse = {
 const ACCESS_REQUEST_GENERIC_MESSAGE =
   'Se os dados forem válidos, sua solicitação será analisada.';
 
-const WEB_MANAGER_ROLES: TherapistRole[] = [
-  TherapistRole.ASSISTANT,
-  TherapistRole.ADMIN,
-  TherapistRole.SUPER_ADMIN,
-];
+const WEB_MANAGER_ROLES: TherapistRole[] = [TherapistRole.ASSISTANT, TherapistRole.ADMIN];
 
-/** Contas do gerenciador web (ajudante/professora/super admin) — nunca THERAPIST (mobile). */
+/** Contas do gerenciador web (ajudante/professora) — nunca THERAPIST (mobile). */
 function isWebManagerRole(role: TherapistRole): boolean {
   return WEB_MANAGER_ROLES.includes(role);
 }
@@ -135,7 +131,7 @@ export class AuthService implements OnModuleInit {
     }
 
     // Gerenciador web sem role definida (ex.: login genérico): restringe a
-    // ASSISTANT/ADMIN/SUPER_ADMIN, nunca autentica a conta THERAPIST (mobile).
+    // ASSISTANT/ADMIN, nunca autentica a conta THERAPIST (mobile).
     if (input.panel === 'web') {
       const webAccounts = await this.prisma.therapist.findMany({
         where: { email, role: { in: WEB_MANAGER_ROLES } },
@@ -245,7 +241,7 @@ export class AuthService implements OnModuleInit {
       throw new UnauthorizedException('Sessão inválida. Faça login novamente.');
     }
 
-    // Senha temporária / troca obrigatória é só do gerenciador web (ASSISTANT/ADMIN/SUPER_ADMIN).
+    // Senha temporária / troca obrigatória é só do gerenciador web (ASSISTANT/ADMIN).
     if (!isWebManagerRole(therapist.role)) {
       throw new ForbiddenException(
         'Alteração de senha autenticada é exclusiva do gerenciador web. No app mobile use a recuperação de senha.',
@@ -369,7 +365,7 @@ export class AuthService implements OnModuleInit {
 
   /**
    * Contas com o mesmo e-mail: mobile = THERAPIST; gerenciador web =
-   * ASSISTANT/ADMIN/SUPER_ADMIN. Sem `role`:
+   * ASSISTANT/ADMIN. Sem `role`:
    * - `panel === 'web'`: restringe às roles do gerenciador.
    * - caso contrário, com duas contas, prioriza THERAPIST (compatível com o app).
    */
@@ -468,8 +464,7 @@ export class AuthService implements OnModuleInit {
       email: user.email,
       role: user.role,
       mustChangePassword,
-      canManageAccessRequests:
-        user.role === TherapistRole.ADMIN || user.role === TherapistRole.SUPER_ADMIN,
+      canManageAccessRequests: user.role === TherapistRole.ADMIN,
     };
 
     const accessToken = this.jwtService.sign(

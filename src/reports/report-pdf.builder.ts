@@ -12,6 +12,9 @@ import type { ReportPdfData, ReportTimeseriesPoint } from './report-pdf.types';
 
 type PdfDoc = InstanceType<typeof PDFDocument>;
 
+/** Título + assinatura/carimbo + rodapé — a seção 5 nunca é quebrada entre páginas. */
+const SIGNATURE_SECTION_MIN_HEIGHT = 260;
+
 export async function buildReportPdf(data: ReportPdfData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
@@ -44,6 +47,7 @@ function renderReport(doc: PdfDoc, data: ReportPdfData): void {
   renderInterpretationBlock(doc, data);
   renderSectionTitle(doc, '4. Gráfico de evolução clínica');
   renderEvolutionBlock(doc, data);
+  ensureSpace(doc, SIGNATURE_SECTION_MIN_HEIGHT);
   renderSectionTitle(doc, '5. Área de assinatura e carimbo');
   renderSignatureBlock(doc, data);
   renderFooter(doc, data);

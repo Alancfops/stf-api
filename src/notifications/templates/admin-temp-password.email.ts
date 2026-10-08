@@ -1,21 +1,42 @@
 const BRAND = 'Sênior Teste Funcional';
 
+/** `access-approved`: ajudante aprovado pelo painel; `admin-account`: professora via `admin:set`. */
+export type AdminTempPasswordEmailKind = 'access-approved' | 'admin-account';
+
+const INTRO: Record<
+  AdminTempPasswordEmailKind,
+  { subject: string; text: string; html: string }
+> = {
+  'access-approved': {
+    subject: 'acesso ao gerenciador web aprovado',
+    text: `Sua solicitação de acesso ao gerenciador web do ${BRAND} foi aprovada.`,
+    html: 'Sua solicitação de acesso ao <strong>gerenciador web</strong> foi aprovada.',
+  },
+  'admin-account': {
+    subject: 'sua conta de professora no gerenciador web',
+    text: `Seu acesso de professora (administradora) ao gerenciador web do ${BRAND} foi definido.`,
+    html: 'Seu acesso de <strong>professora (administradora)</strong> ao <strong>gerenciador web</strong> foi definido.',
+  },
+};
+
 export function buildAdminTempPasswordEmail(params: {
   fullName: string;
   tempPassword: string;
+  kind?: AdminTempPasswordEmailKind;
 }) {
-  const subject = `${BRAND} — acesso ao gerenciador web aprovado`;
+  const intro = INTRO[params.kind ?? 'access-approved'];
+  const subject = `${BRAND} — ${intro.subject}`;
 
   const text = [
     `Olá, ${params.fullName}.`,
     '',
-    `Sua solicitação de acesso ao gerenciador web do ${BRAND} foi aprovada.`,
+    intro.text,
     '',
     `Senha temporária (somente para o painel web): ${params.tempPassword}`,
     '',
     'No primeiro login no gerenciador web você deverá alterá-la.',
     'Esta senha não é usada no app mobile. Se você também usa o app, a conta do mobile continua independente.',
-    'Não compartilhe este e-mail. Se você não solicitou acesso, ignore esta mensagem.',
+    'Não compartilhe este e-mail. Se você não esperava este acesso, ignore esta mensagem.',
   ].join('\n');
 
   const html = `<!DOCTYPE html>
@@ -35,7 +56,7 @@ export function buildAdminTempPasswordEmail(params: {
                 <p style="margin:0 0 8px;font-size:14px;color:#3666E0;font-weight:700;">${BRAND}</p>
                 <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1A1A2E;">Acesso ao gerenciador web</h1>
                 <p style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#4A4A68;">
-                  Olá, ${escapeHtml(params.fullName)}. Sua solicitação de acesso ao <strong>gerenciador web</strong> foi aprovada.
+                  Olá, ${escapeHtml(params.fullName)}. ${intro.html}
                 </p>
                 <p style="margin:0 0 8px;font-size:13px;color:#4A4A68;">Senha temporária (somente painel web):</p>
                 <p style="margin:0 0 16px;font-size:20px;font-weight:700;letter-spacing:2px;color:#3666E0;font-family:Consolas,Monaco,monospace;">
@@ -48,7 +69,7 @@ export function buildAdminTempPasswordEmail(params: {
                   Esta senha <strong>não</strong> é usada no app mobile. Se você também usa o app, a conta do mobile continua independente.
                 </p>
                 <p style="margin:0;font-size:13px;line-height:1.5;color:#7A7A92;">
-                  Não compartilhe este e-mail. Se você não solicitou acesso, ignore esta mensagem.
+                  Não compartilhe este e-mail. Se você não esperava este acesso, ignore esta mensagem.
                 </p>
               </td>
             </tr>

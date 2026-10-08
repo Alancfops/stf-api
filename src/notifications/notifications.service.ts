@@ -9,7 +9,10 @@ import nodemailer, { Transporter } from 'nodemailer';
 import { Resend } from 'resend';
 
 import { Env } from '../config/env.schema';
-import { buildAdminTempPasswordEmail } from './templates/admin-temp-password.email';
+import {
+  AdminTempPasswordEmailKind,
+  buildAdminTempPasswordEmail,
+} from './templates/admin-temp-password.email';
 import { buildPasswordResetEmail } from './templates/password-reset.email';
 
 type OutboundEmail = {
@@ -79,7 +82,11 @@ export class NotificationsService implements OnModuleInit {
 
   async sendAdminTempPasswordEmail(
     to: string,
-    payload: { fullName: string; tempPassword: string },
+    payload: {
+      fullName: string;
+      tempPassword: string;
+      kind?: AdminTempPasswordEmailKind;
+    },
   ): Promise<void> {
     const { subject, text, html } = buildAdminTempPasswordEmail(payload);
     await this.dispatch({

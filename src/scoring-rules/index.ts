@@ -3,7 +3,7 @@ import type { SchoolingBand } from '../common/constants/schooling-band';
 export const SCORING_RULE_VERSIONS = {
   tug: 'tug-cutoff-2026-01',
   katz: 'katz-stratum-v1',
-  berg: 'berg-cutoff-2026-01',
+  berg: 'berg-cutoff-2026-10',
   tinetti: 'tinetti-cutoff-2026-01',
   meem: 'meem-brucki-2003',
 } as const;
@@ -17,13 +17,9 @@ export const BRUCKI_CUTOFF: Record<SchoolingBand, number> = {
 };
 
 export const BERG_CLASSIFICATION = [
-  { max: 20, code: 'BERG_SEVERE', label: 'Risco gravíssimo de quedas (0–20)' },
-  {
-    max: 40,
-    code: 'BERG_MODERATE',
-    label: 'Risco moderado a alto de quedas (21–40)',
-  },
-  { max: 56, code: 'BERG_LOW', label: 'Baixo risco de quedas (41–56)' },
+  { max: 20, code: 'BERG_SEVERE', label: 'Prejuízo do equilíbrio (0–20)' },
+  { max: 40, code: 'BERG_MODERATE', label: 'Equilíbrio aceitável (21–40)' },
+  { max: 56, code: 'BERG_LOW', label: 'Bom equilíbrio (41–56)' },
 ] as const;
 
 export const TINETTI_CLASSIFICATION = [

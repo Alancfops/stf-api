@@ -7,7 +7,7 @@ const E2E_DB_NAME = 'senior_test_e2e';
 function loadEnvFile() {
   const envPath = resolve(__dirname, '../.env');
   if (!existsSync(envPath)) {
-    throw new Error('backend/.env não encontrado. Rode make setup.');
+    throw new Error('.env não encontrado. Rode make setup.');
   }
 
   for (const line of readFileSync(envPath, 'utf8').split('\n')) {
@@ -38,7 +38,7 @@ loadEnvFile();
 
 const devDatabaseUrl = process.env.DATABASE_URL;
 if (!devDatabaseUrl) {
-  throw new Error('DATABASE_URL ausente em backend/.env');
+  throw new Error('DATABASE_URL ausente em .env');
 }
 
 const e2eDatabaseUrl = devDatabaseUrl.replace(/\/senior_test(\?|$)/, `/${E2E_DB_NAME}$1`);

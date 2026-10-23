@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: senior-test-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: senior
+      POSTGRES_PASSWORD: senior
+      POSTGRES_DB: senior_test
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U senior -d senior_test"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  postgres_data:
+    # Nome fixo: reaproveita o volume criado quando a API vivia em senior-test-funcional/
+    name: senior-test-funcional_postgres_data

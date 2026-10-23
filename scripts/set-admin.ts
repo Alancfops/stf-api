@@ -16,7 +16,7 @@
  *   npm run admin:set -- --email nova@exemplo.com --name "Profa. Nova" --replace
  *
  * Conta nova ou recuperação: a senha temporária vai para o e-mail da professora
- * (MAIL_PROVIDER do backend/.env) e o gerenciador obriga a troca no 1º login. Se o
+ * (MAIL_PROVIDER do .env) e o gerenciador obriga a troca no 1º login. Se o
  * envio falhar — ou com --no-email — ela é exibida uma única vez no terminal.
  * Promoção: só um aviso por e-mail; ela entra com a senha que já usa no app.
  */

@@ -1,2 +1,28 @@
+# Dependências e build
+node_modules/
+dist/
+coverage/
+
+# Segredos e credenciais
+.env
+.env.*
+!.env.example
+secrets/
+credentials/
+*.pem
+*.key
+*.secret
+.npmrc
+
+# Arquivos gerados em runtime (fotos de pacientes, PDFs de protótipo)
 uploads/
 output/
+
+# Editor / SO
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.swp
+*~
+Thumbs.db

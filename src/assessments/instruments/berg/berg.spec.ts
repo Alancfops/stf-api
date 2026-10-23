@@ -11,8 +11,11 @@ describe('Berg scorer', () => {
     expect(classifyBerg(56).classificationCode).toBe('BERG_LOW');
   });
 
-  it('classifica risco moderado', () => {
-    expect(classifyBerg(30).classificationCode).toBe('BERG_MODERATE');
+  it('classifica faixas conforme assess.md §4', () => {
+    expect(classifyBerg(20).classificationLabel).toBe('Prejuízo do equilíbrio (0–20)');
+    expect(classifyBerg(21).classificationLabel).toBe('Equilíbrio aceitável (21–40)');
+    expect(classifyBerg(40).classificationCode).toBe('BERG_MODERATE');
+    expect(classifyBerg(41).classificationLabel).toBe('Bom equilíbrio (41–56)');
   });
 
   it('rejeita item ausente', () => {

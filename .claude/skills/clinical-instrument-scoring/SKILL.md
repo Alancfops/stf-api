@@ -11,7 +11,7 @@ Valida se **coleta**, **validação**, **cálculo** e **classificação** dos ci
 
 ## Fontes canônicas (ordem)
 
-1. [docs/clinical-protocols/instruments/](../../../docs/clinical-protocols/instruments) — roteiro e pontuação
+1. [docs/clinical-protocols/instruments/](../../../../senior-test-funcional/docs/clinical-protocols/instruments) — roteiro e pontuação
 2. [docs/backend/README.md](../../../docs/backend/README.md) §5 — o que o servidor calcula
 3. [docs/product/requirements.md](../../../../senior-test-funcional/docs/product/requirements.md) — RF008–RF011
 4. [docs/frontend/README.md](../../../../senior-test-funcional/docs/frontend/README.md) §6 — coleta no app
@@ -102,11 +102,11 @@ Severidade: **Crítica** (resultado clínico errado) · **Alta** (validação fa
 
 | code | Verificação principal | Protocolo |
 |------|----------------------|-----------|
-| `tug` | Média de 3 tempos; classificação parametrizável | [tug/assess.md](../../../docs/clinical-protocols/instruments/tug/assess.md) |
-| `katz` | Estrato = **# Dependente** (0–6); A não entra no estrato | [katz/assess.md](../../../docs/clinical-protocols/instruments/katz/assess.md) |
-| `berg` | Soma 14×(0–4) = 0–56; todos itens obrigatórios | [berg/assess.md](../../../docs/clinical-protocols/instruments/berg/assess.md) |
-| `tinetti` | Subtotais 16+12=28; item 11 até 4 pts | [tinetti/assess.md](../../../docs/clinical-protocols/instruments/tinetti/assess.md) |
-| `meem` | Total 30; corte Brucki por `schooling_band_used` | [meem/assess.md](../../../docs/clinical-protocols/instruments/meem/assess.md) |
+| `tug` | Média de 3 tempos; classificação parametrizável | [tug/assess.md](../../../../senior-test-funcional/docs/clinical-protocols/instruments/tug/assess.md) |
+| `katz` | Estrato = **# Dependente** (0–6); A não entra no estrato | [katz/assess.md](../../../../senior-test-funcional/docs/clinical-protocols/instruments/katz/assess.md) |
+| `berg` | Soma 14×(0–4) = 0–56; todos itens obrigatórios | [berg/assess.md](../../../../senior-test-funcional/docs/clinical-protocols/instruments/berg/assess.md) |
+| `tinetti` | Subtotais 16+12=28; item 11 até 4 pts | [tinetti/assess.md](../../../../senior-test-funcional/docs/clinical-protocols/instruments/tinetti/assess.md) |
+| `meem` | Total 30; corte Brucki por `schooling_band_used` | [meem/assess.md](../../../../senior-test-funcional/docs/clinical-protocols/instruments/meem/assess.md) |
 
 Detalhes numéricos, casos borda e payloads exemplo: [reference.md](reference.md).
 

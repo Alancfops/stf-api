@@ -15,7 +15,7 @@ Regras numéricas: @.claude/skills/clinical-instrument-scoring/reference.md
 ## Checklist obrigatório
 
 1. Identificar qual(is) instrumento(s) revisar (ou inferir pelos arquivos alterados).
-2. Ler protocolo clínico correspondente em `docs/clinical-protocols/instruments/`.
+2. Ler protocolo clínico correspondente em `../senior-test-funcional/docs/clinical-protocols/instruments/`.
 3. Verificar Zod, scorer, classify, testes e UI (se houver).
 4. Entregar relatório de verificação em português com veredicto.
 5. Declarar impacto LGPD se aplicável.

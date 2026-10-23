@@ -1,6 +1,6 @@
 # Questionários — regras de implementação e casos borda
 
-Referência numérica para a skill `clinical-instrument-scoring`. Em conflito, prevalecem [clinical-protocols](../../../docs/clinical-protocols/instruments) e [requirements](../../../../senior-test-funcional/docs/product/requirements.md).
+Referência numérica para a skill `clinical-instrument-scoring`. Em conflito, prevalecem [clinical-protocols](../../../../senior-test-funcional/docs/clinical-protocols/instruments) e [requirements](../../../../senior-test-funcional/docs/product/requirements.md).
 
 ---
 

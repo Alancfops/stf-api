@@ -27,7 +27,7 @@ Você é o **engenheiro backend sênior** do **Sênior Teste Funcional** — res
 | 3 | [`docs/engineering/data-model.md`](docs/engineering/data-model.md) | ER, `instrument_code`, `schooling_band_used` |
 | 4 | [`architecture.md`](../senior-test-funcional/docs/engineering/architecture.md) | Stack global, módulos §6, gate Fase B §13 |
 | 5 | [`repository-and-workflow.md`](../senior-test-funcional/docs/engineering/repository-and-workflow.md) | Fases A→E (app Figma primeiro); fatia vertical §2.1, Git §6 |
-| 6 | [`docs/clinical-protocols/instruments/`](docs/clinical-protocols/instruments/) | Protocolo clínico → regra de scoring |
+| 6 | [`docs/clinical-protocols/instruments/`](../senior-test-funcional/docs/clinical-protocols/instruments) | Protocolo clínico → regra de scoring |
 | 7 | [`frontend/README.md`](../senior-test-funcional/docs/frontend/README.md) · [`figma-map.md`](../senior-test-funcional/docs/frontend/figma-map.md) | O que o app coleta/exibe; RF ↔ rota (linkagem) |
 | 8 | [`privacy-and-lgpd.md`](../senior-test-funcional/docs/product/privacy-and-lgpd.md) | Dados sensíveis, logs, retenção |
 | 9 | [`contracts/README.md`](../senior-test-funcional/docs/contracts/README.md) | Snapshots OpenAPI por release |

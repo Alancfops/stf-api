@@ -35,7 +35,7 @@ A plataforma digitaliza esse fluxo para o **fisioterapeuta** (persona principal)
 
 O backend entra como a camada que **garante que dois profissionais, dois celulares ou duas versões do app não produzam resultados divergentes** para a mesma entrada de dados — e que **dados sensíveis de saúde** fiquem sob controle técnico adequado ([privacy-and-lgpd](../../../senior-test-funcional/docs/product/privacy-and-lgpd.md)).
 
-**Importante:** o sistema **apoia** a decisão clínica; **não substitui** o julgamento do profissional. A API automatiza cálculo e classificação **quando há tabela parametrizada**, mas o texto de conduta na cadeira do paciente continua em [clinical-protocols](../clinical-protocols/README.md).
+**Importante:** o sistema **apoia** a decisão clínica; **não substitui** o julgamento do profissional. A API automatiza cálculo e classificação **quando há tabela parametrizada**, mas o texto de conduta na cadeira do paciente continua em [clinical-protocols](../../../senior-test-funcional/docs/clinical-protocols/README.md).
 
 ---
 
@@ -230,12 +230,12 @@ Ordem das telas no app: instrumento → paciente → tutorial → coleta ([requi
 
 ## 5. Instrumentos e regras de cálculo
 
-Cada instrumento é um **subdomínio**. O aplicador segue [clinical-protocols](../clinical-protocols/instruments); o servidor implementa **o que entra no banco e no PDF**.
+Cada instrumento é um **subdomínio**. O aplicador segue [clinical-protocols](../../../senior-test-funcional/docs/clinical-protocols/instruments); o servidor implementa **o que entra no banco e no PDF**.
 
 | Código | O que o app coleta (resumo) | O que o servidor calcula | Nuance importante |
 |--------|----------------------------|--------------------------|-------------------|
 | **TUG** | 3 tempos em segundos | **Média** aritmética | Ensaio de familiarização pode existir na conduta clínica; o RF fala nos 3 tempos reais — alinhar payload ao protocolo adotado |
-| **KATZ** | 6 domínios: I / A / D | Estrato **0–6** = quantidade de **D** | Opção **A** entra na coleta e no relatório descritivo; estrato numérico segue contagem de D ([katz/assess](../clinical-protocols/instruments/katz/assess.md)) |
+| **KATZ** | 6 domínios: I / A / D | Estrato **0–6** = quantidade de **D** | Opção **A** entra na coleta e no relatório descritivo; estrato numérico segue contagem de D ([katz/assess](../../../senior-test-funcional/docs/clinical-protocols/instruments/katz/assess.md)) |
 | **BERG** | 14 itens, nota 0–4 cada | **Soma** 0–56 | Validação: nenhum item vazio no finalize |
 | **TINETTI** | 16 itens (equilíbrio + marcha) | **Soma** 0–28 | Progresso “item X de 16” é UX do app |
 | **MEEM** | Blocos com tetos (total 30) | **Soma** + **faixa** por escolaridade | Usar `schooling_band_used` da sessão; não confiar só no cadastro se houve correção na aplicação |

@@ -46,7 +46,7 @@ Verifique o e-mail (RF003): `make mail-check`.
 |------|------|
 | Comportamento da API (RFs) | [docs/backend/README.md](docs/backend/README.md) |
 | Modelo de dados | [docs/engineering/data-model.md](docs/engineering/data-model.md) |
-| Instrumentos clínicos | [docs/clinical-protocols/](docs/clinical-protocols/) |
+| Protocolos clínicos (TUG, Katz, Berg, Tinetti, MEEM) | `senior-test-funcional/docs/clinical-protocols/` — especificação de produto, fica no repo do app |
 | Regras do backend | [docs/rules/](docs/rules/) |
 | Contrato admin (`/admin/*`) | `stf-gerenciador-web/docs/contracts/admin-api.md` |
 | Requisitos e LGPD | `senior-test-funcional/docs/product/` |

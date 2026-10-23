@@ -28,9 +28,7 @@ describe('Admin (e2e)', () => {
     await app.init();
 
     const admin = await prisma.therapist.upsert({
-      where: {
-        email_role: { email: adminEmail, role: TherapistRole.ADMIN },
-      },
+      where: { email: adminEmail },
       update: {
         fullName: 'Professora E2E',
         passwordHash: await hashPassword('Abcd1234'),
@@ -65,7 +63,7 @@ describe('Admin (e2e)', () => {
 
     const adminLogin = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: adminEmail, password: 'Abcd1234', role: 'ADMIN' })
+      .send({ email: adminEmail, password: 'Abcd1234', panel: 'web' })
       .expect(201);
 
     adminToken = adminLogin.body.accessToken;
@@ -113,7 +111,8 @@ describe('Admin (e2e)', () => {
 
     expect(response.body.data.length).toBeGreaterThanOrEqual(2);
     expect(response.body.meta.total).toBeGreaterThanOrEqual(2);
-    expect(response.body.data.some((t: { id: string }) => t.id === adminId)).toBe(false);
+    // A professora também atende pelo app: a própria conta aparece na lista.
+    expect(response.body.data.some((t: { id: string }) => t.id === adminId)).toBe(true);
   });
 
   it('POST /admin/patients/:id/transfer atualiza patient e assessments', async () => {
@@ -225,102 +224,159 @@ describe('Admin (e2e)', () => {
     expect(stored).not.toBeNull();
   });
 
-  it('fluxo solicitação de acesso admin → approve → login mustChangePassword → change-password', async () => {
-    const email = 'novo-acesso@test.com';
+  it('professora usa a mesma conta no app: login sem panel, cadastro bloqueado e pacientes no painel', async () => {
+    const appLogin = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: adminEmail, password: 'Abcd1234' })
+      .expect(201);
+    expect(appLogin.body.user.role).toBe('ADMIN');
 
     await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email: adminEmail, fullName: 'Professora Duplicada', password: 'Abcd1234' })
+      .expect(409);
+
+    const created = await request(app.getHttpServer())
+      .post('/patients')
+      .set('Authorization', `Bearer ${appLogin.body.accessToken}`)
+      .send({
+        fullName: 'Paciente Professora',
+        age: 81,
+        gender: 'feminino',
+        contact: 'paciente@email.com',
+        schoolingBand: '9_11_anos',
+      })
+      .expect(201);
+
+    const list = await request(app.getHttpServer())
+      .get('/admin/therapists')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(list.body.data.some((t: { id: string }) => t.id === adminId)).toBe(true);
+
+    const detail = await request(app.getHttpServer())
+      .get(`/admin/therapists/${adminId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+    expect(detail.body.patients.map((p: { id: string }) => p.id)).toContain(created.body.id);
+
+    await prisma.patient.delete({ where: { id: created.body.id } });
+  });
+
+  it('fluxo ajudante: conta do app → solicitação com senha → approve promove a mesma conta → revoke', async () => {
+    const email = 'aluno-ajudante@test.com';
+    const password = 'Abcd1234';
+
+    const registered = await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email, fullName: 'Aluno Ajudante', password })
+      .expect(201);
+    expect(registered.body.user.role).toBe('THERAPIST');
+
+    // Antes da aprovação, o gerenciador não autentica a conta do app.
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password, panel: 'web' })
+      .expect(401);
+
+    // Senha errada: resposta genérica, nenhuma solicitação criada.
+    await request(app.getHttpServer())
       .post('/auth/admin-access-request')
-      .send({ email, fullName: 'Novo Acesso' })
+      .send({ email, fullName: 'Aluno Ajudante', password: 'Errada1234' })
       .expect(201)
       .expect((res) => {
         expect(res.body.message).toMatch(/solicitação será analisada/i);
       });
+    expect(await prisma.adminAccessRequest.count({ where: { email } })).toBe(0);
 
-    // Duplicata PENDING: mensagem genérica, sem novo registro
     await request(app.getHttpServer())
       .post('/auth/admin-access-request')
-      .send({ email, fullName: 'Novo Acesso' })
+      .send({ email, fullName: 'Aluno Ajudante', password })
       .expect(201);
 
-    const pendingCount = await prisma.adminAccessRequest.count({
-      where: { email, status: 'PENDING' },
+    // Duplicata PENDING: mensagem genérica, sem novo registro.
+    await request(app.getHttpServer())
+      .post('/auth/admin-access-request')
+      .send({ email, fullName: 'Aluno Ajudante', password })
+      .expect(201);
+
+    const appAccount = await prisma.therapist.findUniqueOrThrow({
+      where: { email },
     });
-    expect(pendingCount).toBe(1);
-
-    const list = await request(app.getHttpServer())
-      .get('/admin/access-requests')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .expect(200);
-
-    const requestItem = list.body.data.find(
-      (item: { email: string }) => item.email === email,
-    );
-    expect(requestItem).toBeDefined();
-    expect(requestItem.status).toBe('PENDING');
+    const stored = await prisma.adminAccessRequest.findMany({ where: { email } });
+    expect(stored).toHaveLength(1);
+    expect(stored[0].therapistId).toBe(appAccount.id);
 
     const approved = await request(app.getHttpServer())
-      .post(`/admin/access-requests/${requestItem.id}/approve`)
+      .post(`/admin/access-requests/${stored[0].id}/approve`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(201);
 
-    expect(approved.body.role).toBe('ASSISTANT');
-    expect(approved.body.mustChangePassword).toBe(true);
-
-    const created = await prisma.therapist.findUniqueOrThrow({
-      where: { email_role: { email, role: 'ASSISTANT' } },
-    });
-    expect(created.mustChangePassword).toBe(true);
-    expect(created.role).toBe('ASSISTANT');
-
-    const auditEntry = await prisma.adminAuditLog.findFirst({
-      where: { action: 'CREATE_THERAPIST', targetId: created.id },
-    });
-    expect(auditEntry).not.toBeNull();
-
-    // Login com senha temp não é testável aqui (e-mail console); força hash conhecido
-    const knownTemp = 'AbCd5678';
-    await prisma.therapist.update({
-      where: { id: created.id },
-      data: {
-        passwordHash: await hashPassword(knownTemp),
-        mustChangePassword: true,
-      },
+    expect(approved.body).toMatchObject({
+      id: appAccount.id,
+      role: 'ASSISTANT',
+      notificationSent: true,
     });
 
-    const login = await request(app.getHttpServer())
+    const accounts = await prisma.therapist.findMany({ where: { email } });
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0].role).toBe('ASSISTANT');
+    expect(accounts[0].mustChangePassword).toBe(false);
+
+    const promoteAudit = await prisma.adminAuditLog.findFirst({
+      where: { action: 'PROMOTE_ASSISTANT', targetId: appAccount.id },
+    });
+    expect(promoteAudit).not.toBeNull();
+
+    // Mesma senha no gerenciador e no app.
+    const webLogin = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email, password: knownTemp, role: 'ASSISTANT' })
+      .send({ email, password, panel: 'web' })
       .expect(201);
-
-    expect(login.body.user.mustChangePassword).toBe(true);
-    expect(login.body.user.role).toBe('ASSISTANT');
+    expect(webLogin.body.user.role).toBe('ASSISTANT');
+    expect(webLogin.body.user.mustChangePassword).toBe(false);
 
     await request(app.getHttpServer())
-      .post('/auth/change-password')
-      .set('Authorization', `Bearer ${login.body.accessToken}`)
-      .send({ currentPassword: knownTemp, newPassword: 'NovaSenha1234' })
-      .expect(201);
-
-    const afterChange = await prisma.therapist.findUniqueOrThrow({
-      where: { email_role: { email, role: 'ASSISTANT' } },
-    });
-    expect(afterChange.mustChangePassword).toBe(false);
-
-    const login2 = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email, password: 'NovaSenha1234' })
+      .send({ email, password })
       .expect(201);
 
-    expect(login2.body.user.mustChangePassword).toBe(false);
+    // Aluno promovido não consegue criar segunda conta no app com o mesmo e-mail.
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send({ email, fullName: 'Aluno Duplicado', password })
+      .expect(409);
 
-    await prisma.therapist.delete({ where: { id: created.id } });
+    const revoked = await request(app.getHttpServer())
+      .post(`/admin/assistants/${appAccount.id}/revoke`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(201);
+    expect(revoked.body).toEqual({ id: appAccount.id, role: 'THERAPIST' });
+
+    const revokeAudit = await prisma.adminAuditLog.findFirst({
+      where: { action: 'REVOKE_ASSISTANT', targetId: appAccount.id },
+    });
+    expect(revokeAudit).not.toBeNull();
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password, panel: 'web' })
+      .expect(401);
+
+    await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email, password })
+      .expect(201);
+
+    await prisma.therapist.delete({ where: { id: appAccount.id } });
   });
 
-  it('POST /admin/access-requests/:id/reject marca REJECTED', async () => {
+  it('POST /admin/access-requests/:id/reject marca REJECTED, audita e avisa por e-mail', async () => {
     const created = await prisma.adminAccessRequest.create({
       data: {
-        email: 'reject-me@test.com',
+        email: 'fisio-admin-b@test.com',
         fullName: 'Reject Me',
+        therapistId: therapistBId,
       },
     });
 
@@ -330,59 +386,74 @@ describe('Admin (e2e)', () => {
       .expect(201);
 
     expect(rejected.body.status).toBe('REJECTED');
+    expect(rejected.body.notificationSent).toBe(true);
 
     const stored = await prisma.adminAccessRequest.findUniqueOrThrow({
       where: { id: created.id },
     });
     expect(stored.status).toBe('REJECTED');
     expect(stored.resolvedById).toBe(adminId);
-  });
 
-  it('approve cria ASSISTANT mesmo se e-mail já existe como THERAPIST (mobile)', async () => {
-    const email = 'fisio-admin-a@test.com';
-    const created = await prisma.adminAccessRequest.create({
-      data: {
-        email,
-        fullName: 'Fisio Vira Assistente',
-      },
+    const rejectAudit = await prisma.adminAuditLog.findFirst({
+      where: { action: 'REJECT_ACCESS_REQUEST', targetId: created.id },
+    });
+    expect(rejectAudit).toMatchObject({
+      adminId,
+      targetType: 'AccessRequest',
+      metadata: { fullName: 'Reject Me', email: 'fisio-admin-b@test.com' },
     });
 
-    const approved = await request(app.getHttpServer())
-      .post(`/admin/access-requests/${created.id}/approve`)
-      .set('Authorization', `Bearer ${adminToken}`)
-      .expect(201);
-
-    expect(approved.body.role).toBe('ASSISTANT');
-    expect(approved.body.email).toBe(email);
-
-    const accounts = await prisma.therapist.findMany({ where: { email } });
-    expect(accounts).toHaveLength(2);
-    expect(accounts.map((a) => a.role).sort()).toEqual(['ASSISTANT', 'THERAPIST']);
-
-    await prisma.therapist.delete({ where: { id: approved.body.id } });
+    const account = await prisma.therapist.findUniqueOrThrow({
+      where: { id: therapistBId },
+    });
+    expect(account.role).toBe('THERAPIST');
   });
 
-  it('approve retorna 409 se e-mail já existe como ASSISTANT', async () => {
-    const assistant = await prisma.therapist.create({
-      data: {
-        email: 'assistente-existente@test.com',
-        fullName: 'Assistente Existente',
-        passwordHash: await hashPassword('Abcd1234'),
-        role: TherapistRole.ASSISTANT,
-      },
-    });
-
+  it('approve retorna 409 para solicitação antiga sem conta do app vinculada', async () => {
     const created = await prisma.adminAccessRequest.create({
-      data: {
-        email: assistant.email,
-        fullName: 'Conflito Assistente',
-      },
+      data: { email: 'legado@test.com', fullName: 'Pedido Legado' },
     });
 
     await request(app.getHttpServer())
       .post(`/admin/access-requests/${created.id}/approve`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(409);
+
+    const stored = await prisma.adminAccessRequest.findUniqueOrThrow({
+      where: { id: created.id },
+    });
+    expect(stored.status).toBe('PENDING');
+  });
+
+  it('revoke retorna 409 para conta que não é ajudante e 403 para ASSISTANT', async () => {
+    await request(app.getHttpServer())
+      .post(`/admin/assistants/${therapistAId}/revoke`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(409);
+
+    await request(app.getHttpServer())
+      .post(`/admin/assistants/${adminId}/revoke`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(409);
+
+    const assistant = await prisma.therapist.create({
+      data: {
+        email: 'ajudante-revoke@test.com',
+        fullName: 'Ajudante Revoke',
+        passwordHash: await hashPassword('Abcd1234'),
+        role: TherapistRole.ASSISTANT,
+      },
+    });
+
+    const login = await request(app.getHttpServer())
+      .post('/auth/login')
+      .send({ email: assistant.email, password: 'Abcd1234', panel: 'web' })
+      .expect(201);
+
+    await request(app.getHttpServer())
+      .post(`/admin/assistants/${assistant.id}/revoke`)
+      .set('Authorization', `Bearer ${login.body.accessToken}`)
+      .expect(403);
 
     await prisma.therapist.delete({ where: { id: assistant.id } });
   });
@@ -399,7 +470,7 @@ describe('Admin (e2e)', () => {
 
     const login = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: manager.email, password: 'Abcd1234', role: 'ADMIN' })
+      .send({ email: manager.email, password: 'Abcd1234', panel: 'web' })
       .expect(201);
 
     expect(login.body.user.canManageAccessRequests).toBe(true);
@@ -424,7 +495,7 @@ describe('Admin (e2e)', () => {
 
     const login = await request(app.getHttpServer())
       .post('/auth/login')
-      .send({ email: assistant.email, password: 'Abcd1234', role: 'ASSISTANT' })
+      .send({ email: assistant.email, password: 'Abcd1234', panel: 'web' })
       .expect(201);
 
     expect(login.body.user.canManageAccessRequests).toBe(false);
@@ -493,13 +564,13 @@ describe('Admin (e2e)', () => {
 
       const managerLogin = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: manager.email, password: 'Abcd1234', role: 'ADMIN' })
+        .send({ email: manager.email, password: 'Abcd1234', panel: 'web' })
         .expect(201);
       managerToken = managerLogin.body.accessToken;
 
       const assistantLogin = await request(app.getHttpServer())
         .post('/auth/login')
-        .send({ email: assistant.email, password: 'Abcd1234', role: 'ASSISTANT' })
+        .send({ email: assistant.email, password: 'Abcd1234', panel: 'web' })
         .expect(201);
       assistantToken = assistantLogin.body.accessToken;
     });
@@ -510,11 +581,11 @@ describe('Admin (e2e)', () => {
       });
     });
 
-    it('ADMIN não pode excluir outra conta ADMIN (fora do escopo)', async () => {
+    it('ADMIN vê a própria conta, mas não pode excluí-la', async () => {
       await request(app.getHttpServer())
         .get(`/admin/therapists/${managerId}`)
         .set('Authorization', `Bearer ${managerToken}`)
-        .expect(403);
+        .expect(200);
 
       await request(app.getHttpServer())
         .delete(`/admin/therapists/${managerId}`)
@@ -522,45 +593,52 @@ describe('Admin (e2e)', () => {
         .expect(403);
     });
 
-    it('ADMIN pode listar filtrando por role=ASSISTANT, mas não por role=ADMIN', async () => {
+    it('ADMIN pode listar filtrando por role=ASSISTANT e role=ADMIN', async () => {
       await request(app.getHttpServer())
         .get('/admin/therapists')
         .query({ role: 'ASSISTANT' })
         .set('Authorization', `Bearer ${managerToken}`)
         .expect(200);
 
-      await request(app.getHttpServer())
+      const admins = await request(app.getHttpServer())
         .get('/admin/therapists')
         .query({ role: 'ADMIN' })
         .set('Authorization', `Bearer ${managerToken}`)
-        .expect(403);
+        .expect(200);
+      expect(admins.body.data.some((t: { id: string }) => t.id === managerId)).toBe(true);
     });
 
-    it('ASSISTANT só vê/gerencia THERAPIST', async () => {
+    it('ASSISTANT vê todas as contas (com pacientes), mas só gerencia THERAPIST', async () => {
       const list = await request(app.getHttpServer())
         .get('/admin/therapists')
         .set('Authorization', `Bearer ${assistantToken}`)
         .expect(200);
 
-      expect(
-        list.body.data.every((t: { role: string }) => t.role === 'THERAPIST'),
-      ).toBe(true);
+      const ids = list.body.data.map((t: { id: string }) => t.id);
+      expect(ids).toEqual(
+        expect.arrayContaining([managerId, assistantId, scopedTherapistId]),
+      );
 
       await request(app.getHttpServer())
         .get('/admin/therapists')
         .query({ role: 'ASSISTANT' })
         .set('Authorization', `Bearer ${assistantToken}`)
-        .expect(403);
+        .expect(200);
 
       await request(app.getHttpServer())
         .get(`/admin/therapists/${managerId}`)
         .set('Authorization', `Bearer ${assistantToken}`)
+        .expect(200);
+
+      await request(app.getHttpServer())
+        .delete(`/admin/therapists/${managerId}`)
+        .set('Authorization', `Bearer ${assistantToken}`)
         .expect(403);
 
       await request(app.getHttpServer())
-        .get(`/admin/therapists/${scopedTherapistId}`)
+        .delete(`/admin/therapists/${assistantId}`)
         .set('Authorization', `Bearer ${assistantToken}`)
-        .expect(200);
+        .expect(403);
     });
 
     it('ASSISTANT pode excluir THERAPIST sem pacientes', async () => {

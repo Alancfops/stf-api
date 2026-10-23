@@ -19,25 +19,49 @@ const INTRO: Record<
   },
 };
 
+/** Sem `tempPassword`: conta do app promovida — entra com a senha que já usa. */
 export function buildAdminTempPasswordEmail(params: {
   fullName: string;
-  tempPassword: string;
+  tempPassword?: string;
   kind?: AdminTempPasswordEmailKind;
 }) {
   const intro = INTRO[params.kind ?? 'access-approved'];
   const subject = `${BRAND} — ${intro.subject}`;
+
+  const credentialsText = params.tempPassword
+    ? [
+        `Senha temporária: ${params.tempPassword}`,
+        '',
+        'No primeiro login no gerenciador web você deverá alterá-la.',
+        'Esta conta também vale no app mobile: não é preciso se cadastrar lá — toque em "Entrar" com este e-mail e a senha que você definir no gerenciador.',
+      ]
+    : [
+        'Entre no gerenciador web com o mesmo e-mail e senha que você já usa no app mobile.',
+      ];
 
   const text = [
     `Olá, ${params.fullName}.`,
     '',
     intro.text,
     '',
-    `Senha temporária (somente para o painel web): ${params.tempPassword}`,
-    '',
-    'No primeiro login no gerenciador web você deverá alterá-la.',
-    'Esta senha não é usada no app mobile. Se você também usa o app, a conta do mobile continua independente.',
+    ...credentialsText,
     'Não compartilhe este e-mail. Se você não esperava este acesso, ignore esta mensagem.',
   ].join('\n');
+
+  const credentialsHtml = params.tempPassword
+    ? `<p style="margin:0 0 8px;font-size:13px;color:#4A4A68;">Senha temporária:</p>
+                <p style="margin:0 0 16px;font-size:20px;font-weight:700;letter-spacing:2px;color:#3666E0;font-family:Consolas,Monaco,monospace;">
+                  ${escapeHtml(params.tempPassword)}
+                </p>
+                <p style="margin:0 0 8px;font-size:14px;line-height:1.5;color:#4A4A68;">
+                  No primeiro login no gerenciador você deverá <strong>alterar essa senha</strong>.
+                </p>
+                <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#4A4A68;">
+                  Esta conta também vale no <strong>app mobile</strong>: não é preciso se cadastrar lá — toque em <strong>Entrar</strong> com este e-mail e a senha que você definir no gerenciador.
+                </p>`
+    : `<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#4A4A68;">
+                  Entre no gerenciador web com o <strong>mesmo e-mail e senha</strong> que você já usa no app mobile.
+                </p>`;
 
   const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -58,16 +82,7 @@ export function buildAdminTempPasswordEmail(params: {
                 <p style="margin:0 0 16px;font-size:15px;line-height:1.5;color:#4A4A68;">
                   Olá, ${escapeHtml(params.fullName)}. ${intro.html}
                 </p>
-                <p style="margin:0 0 8px;font-size:13px;color:#4A4A68;">Senha temporária (somente painel web):</p>
-                <p style="margin:0 0 16px;font-size:20px;font-weight:700;letter-spacing:2px;color:#3666E0;font-family:Consolas,Monaco,monospace;">
-                  ${escapeHtml(params.tempPassword)}
-                </p>
-                <p style="margin:0 0 8px;font-size:14px;line-height:1.5;color:#4A4A68;">
-                  No primeiro login no gerenciador você deverá <strong>alterar essa senha</strong>.
-                </p>
-                <p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#4A4A68;">
-                  Esta senha <strong>não</strong> é usada no app mobile. Se você também usa o app, a conta do mobile continua independente.
-                </p>
+                ${credentialsHtml}
                 <p style="margin:0;font-size:13px;line-height:1.5;color:#7A7A92;">
                   Não compartilhe este e-mail. Se você não esperava este acesso, ignore esta mensagem.
                 </p>

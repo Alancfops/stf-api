@@ -13,6 +13,10 @@ import {
   AdminTempPasswordEmailKind,
   buildAdminTempPasswordEmail,
 } from './templates/admin-temp-password.email';
+import {
+  AssistantAccessDecision,
+  buildAssistantAccessEmail,
+} from './templates/assistant-access.email';
 import { buildPasswordResetEmail } from './templates/password-reset.email';
 
 type OutboundEmail = {
@@ -84,7 +88,8 @@ export class NotificationsService implements OnModuleInit {
     to: string,
     payload: {
       fullName: string;
-      tempPassword: string;
+      /** Ausente quando a conta do app foi promovida (mantém a senha). */
+      tempPassword?: string;
       kind?: AdminTempPasswordEmailKind;
     },
   ): Promise<void> {
@@ -97,6 +102,20 @@ export class NotificationsService implements OnModuleInit {
       logLabel: 'admin-temp-password',
       // Console: útil em dev; provedores reais nunca logam a senha.
       consoleIncludeBody: true,
+    });
+  }
+
+  async sendAssistantAccessDecisionEmail(
+    to: string,
+    payload: { fullName: string; decision: AssistantAccessDecision },
+  ): Promise<void> {
+    const { subject, text, html } = buildAssistantAccessEmail(payload);
+    await this.dispatch({
+      to,
+      subject,
+      text,
+      html,
+      logLabel: `assistant-access-${payload.decision}`,
     });
   }
 

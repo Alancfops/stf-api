@@ -34,7 +34,9 @@ export class AuthController {
   }
 
   @Post('admin-access-request')
-  @ApiOperation({ summary: 'Solicitar acesso administrativo (público)' })
+  @ApiOperation({
+    summary: 'Solicitar acesso de ajudante (público) — exige e-mail e senha da conta do app',
+  })
   requestAdminAccess(
     @Body(new ZodValidationPipe(adminAccessRequestSchema))
     body: z.infer<typeof adminAccessRequestSchema>,

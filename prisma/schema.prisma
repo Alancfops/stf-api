@@ -24,6 +24,9 @@ enum AdminAuditAction {
   DELETE_THERAPIST
   DOWNLOAD_REPORT
   CREATE_THERAPIST
+  PROMOTE_ASSISTANT
+  REVOKE_ASSISTANT
+  REJECT_ACCESS_REQUEST
 }
 
 enum AdminAccessRequestStatus {
@@ -34,7 +37,8 @@ enum AdminAccessRequestStatus {
 
 model Therapist {
   id                 String        @id @default(uuid()) @db.Uuid
-  email              String
+  /// Uma conta por pessoa: o mesmo login vale no app e no gerenciador; `role` só define o acesso web.
+  email              String        @unique
   fullName           String        @map("full_name")
   passwordHash       String        @map("password_hash")
   role               TherapistRole @default(THERAPIST)
@@ -46,10 +50,8 @@ model Therapist {
   assessments         Assessment[]
   adminAuditLogs      AdminAuditLog[]
   resolvedAccessRequests AdminAccessRequest[] @relation("AccessRequestResolver")
+  accessRequests         AdminAccessRequest[] @relation("AccessRequestTherapist")
 
-  /// Permite o mesmo e-mail como THERAPIST (mobile) e ADMIN (gerenciador), contas distintas.
-  @@unique([email, role])
-  @@index([email])
   @@map("therapists")
 }
 
@@ -61,11 +63,15 @@ model AdminAccessRequest {
   createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   resolvedAt   DateTime?                @map("resolved_at") @db.Timestamptz(6)
   resolvedById String?                  @map("resolved_by_id") @db.Uuid
+  /// Conta do app (THERAPIST) que pediu acesso; nulo em solicitações do modelo antigo.
+  therapistId  String?                  @map("therapist_id") @db.Uuid
 
   resolvedBy Therapist? @relation("AccessRequestResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  therapist  Therapist? @relation("AccessRequestTherapist", fields: [therapistId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt(sort: Desc)])
   @@index([email])
+  @@index([therapistId])
   @@map("admin_access_requests")
 }
 

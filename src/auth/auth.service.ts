@@ -52,9 +52,12 @@ type AuthResponse = {
 const ACCESS_REQUEST_GENERIC_MESSAGE =
   'Se os dados forem válidos, sua solicitação será analisada.';
 
-const WEB_MANAGER_ROLES: TherapistRole[] = [TherapistRole.ASSISTANT, TherapistRole.ADMIN];
+const WEB_MANAGER_ROLES: TherapistRole[] = [
+  TherapistRole.ASSISTANT,
+  TherapistRole.ADMIN,
+];
 
-/** Contas do gerenciador web (ajudante/professora) — nunca THERAPIST (mobile). */
+/** Roles com acesso ao gerenciador web (ajudante/professora); todas também usam o app. */
 function isWebManagerRole(role: TherapistRole): boolean {
   return WEB_MANAGER_ROLES.includes(role);
 }
@@ -76,10 +79,10 @@ export class AuthService implements OnModuleInit {
 
   async register(input: RegisterInput): Promise<AuthResponse> {
     const email = input.email.toLowerCase();
+    // Uma conta por e-mail: ajudante/professora já usam a mesma conta no app.
     const existingTherapist = await this.prisma.therapist.findUnique({
-      where: {
-        email_role: { email, role: TherapistRole.THERAPIST },
-      },
+      where: { email },
+      select: { id: true },
     });
 
     if (existingTherapist) {
@@ -104,116 +107,67 @@ export class AuthService implements OnModuleInit {
     });
   }
 
+  /**
+   * Mesma conta no app e no gerenciador. O app aceita qualquer role; o gerenciador
+   * (`panel: 'web'`) só ajudante/professora — com o mesmo erro genérico (anti-enumeração).
+   */
   async login(input: LoginInput): Promise<AuthResponse> {
     const email = input.email.toLowerCase();
-
-    // Gerenciador web: autentica só a conta ADMIN (mesmo e-mail pode existir no mobile).
-    if (input.role) {
-      const account = await this.prisma.therapist.findUnique({
-        where: { email_role: { email, role: input.role } },
-      });
-
-      if (!account) {
-        throw new UnauthorizedException('E-mail ou senha inválidos.');
-      }
-
-      const valid = await verifyPassword(account.passwordHash, input.password);
-      if (!valid) {
-        throw new UnauthorizedException('E-mail ou senha inválidos.');
-      }
-
-      return this.buildAuthResponse(account.id, {
-        fullName: account.fullName,
-        email: account.email,
-        role: account.role,
-        mustChangePassword: account.mustChangePassword,
-      });
-    }
-
-    // Gerenciador web sem role definida (ex.: login genérico): restringe a
-    // ASSISTANT/ADMIN, nunca autentica a conta THERAPIST (mobile).
-    if (input.panel === 'web') {
-      const webAccounts = await this.prisma.therapist.findMany({
-        where: { email, role: { in: WEB_MANAGER_ROLES } },
-      });
-
-      const webMatches: Therapist[] = [];
-      for (const account of webAccounts) {
-        const valid = await verifyPassword(account.passwordHash, input.password);
-        if (valid) {
-          webMatches.push(account);
-        }
-      }
-
-      if (webMatches.length === 0) {
-        throw new UnauthorizedException('E-mail ou senha inválidos.');
-      }
-
-      const webAccount = webMatches[0];
-
-      return this.buildAuthResponse(webAccount.id, {
-        fullName: webAccount.fullName,
-        email: webAccount.email,
-        role: webAccount.role,
-        mustChangePassword: webAccount.mustChangePassword,
-      });
-    }
-
-    const accounts = await this.prisma.therapist.findMany({
+    const account = await this.prisma.therapist.findUnique({
       where: { email },
     });
 
-    if (accounts.length === 0) {
+    const valid = account
+      ? await verifyPassword(account.passwordHash, input.password)
+      : false;
+
+    if (!account || !valid) {
       throw new UnauthorizedException('E-mail ou senha inválidos.');
     }
 
-    const matches: Therapist[] = [];
-    for (const account of accounts) {
-      const valid = await verifyPassword(account.passwordHash, input.password);
-      if (valid) {
-        matches.push(account);
-      }
-    }
-
-    if (matches.length === 0) {
+    if (input.panel === 'web' && !isWebManagerRole(account.role)) {
       throw new UnauthorizedException('E-mail ou senha inválidos.');
     }
 
-    // Mobile / legado sem role: se as duas contas tiverem a mesma senha, prioriza THERAPIST.
-    const therapist =
-      matches.length === 1
-        ? matches[0]
-        : (matches.find((account) => account.role === TherapistRole.THERAPIST) ??
-          matches[0]);
-
-    return this.buildAuthResponse(therapist.id, {
-      fullName: therapist.fullName,
-      email: therapist.email,
-      role: therapist.role,
-      mustChangePassword: therapist.mustChangePassword,
+    return this.buildAuthResponse(account.id, {
+      fullName: account.fullName,
+      email: account.email,
+      role: account.role,
+      mustChangePassword: account.mustChangePassword,
     });
   }
 
+  /**
+   * Ajudante = conta do app (THERAPIST) promovida após aprovação. A senha do app
+   * prova a posse da conta; qualquer falha responde genericamente (anti-enumeração).
+   */
   async requestAdminAccess(
     input: AdminAccessRequestInput,
   ): Promise<{ message: string }> {
     const email = input.email.toLowerCase();
     const fullName = input.fullName.trim();
 
-    const existingAssistant = await this.prisma.therapist.findUnique({
-      where: {
-        email_role: { email, role: TherapistRole.ASSISTANT },
-      },
-      select: { id: true },
+    const appAccount = await this.prisma.therapist.findUnique({
+      where: { email },
     });
 
-    // Já é ASSISTANT: não cria solicitação (resposta genérica).
-    if (existingAssistant) {
+    if (!appAccount || appAccount.role !== TherapistRole.THERAPIST) {
+      return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
+    }
+
+    const validPassword = await verifyPassword(
+      appAccount.passwordHash,
+      input.password,
+    );
+    if (!validPassword) {
       return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
     }
 
     const pending = await this.prisma.adminAccessRequest.findFirst({
-      where: { email, status: AdminAccessRequestStatus.PENDING },
+      where: {
+        therapistId: appAccount.id,
+        status: AdminAccessRequestStatus.PENDING,
+      },
       select: { id: true },
     });
 
@@ -221,9 +175,8 @@ export class AuthService implements OnModuleInit {
       return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
     }
 
-    // THERAPIST (mobile) com o mesmo e-mail: permitido — approve cria ASSISTANT separado.
     await this.prisma.adminAccessRequest.create({
-      data: { email, fullName },
+      data: { email, fullName, therapistId: appAccount.id },
     });
 
     return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
@@ -268,13 +221,14 @@ export class AuthService implements OnModuleInit {
     return { message: 'Senha alterada com sucesso.' };
   }
 
-  async forgotPassword(input: ForgotPasswordInput): Promise<{ message: string }> {
+  async forgotPassword(
+    input: ForgotPasswordInput,
+  ): Promise<{ message: string }> {
     await this.cleanupStalePasswordResetTokens();
 
     const email = input.email.toLowerCase();
     const therapist = await this.resolveAccountForPasswordReset(
       email,
-      input.role,
       input.panel,
     );
 
@@ -328,8 +282,10 @@ export class AuthService implements OnModuleInit {
     };
   }
 
-  async verifyResetCode(input: VerifyResetCodeInput): Promise<{ message: string }> {
-    await this.findValidResetToken(input.email, input.token, input.role, input.panel);
+  async verifyResetCode(
+    input: VerifyResetCodeInput,
+  ): Promise<{ message: string }> {
+    await this.findValidResetToken(input.email, input.token, input.panel);
     return { message: 'Código válido.' };
   }
 
@@ -337,7 +293,6 @@ export class AuthService implements OnModuleInit {
     const resetToken = await this.findValidResetToken(
       input.email,
       input.token,
-      input.role,
       input.panel,
     );
     const therapist = await this.prisma.therapist.findUniqueOrThrow({
@@ -363,57 +318,29 @@ export class AuthService implements OnModuleInit {
     return { message: 'Senha alterada com sucesso.' };
   }
 
-  /**
-   * Contas com o mesmo e-mail: mobile = THERAPIST; gerenciador web =
-   * ASSISTANT/ADMIN. Sem `role`:
-   * - `panel === 'web'`: restringe às roles do gerenciador.
-   * - caso contrário, com duas contas, prioriza THERAPIST (compatível com o app).
-   */
+  /** Gerenciador web (`panel: 'web'`) só recupera contas de ajudante/professora. */
   private async resolveAccountForPasswordReset(
     email: string,
-    role?: TherapistRole,
     panel?: 'web',
   ): Promise<Therapist | null> {
-    if (role) {
-      return this.prisma.therapist.findUnique({
-        where: { email_role: { email, role } },
-      });
-    }
-
-    if (panel === 'web') {
-      const webAccounts = await this.prisma.therapist.findMany({
-        where: { email, role: { in: WEB_MANAGER_ROLES } },
-      });
-      return webAccounts[0] ?? null;
-    }
-
-    const accounts = await this.prisma.therapist.findMany({
+    const account = await this.prisma.therapist.findUnique({
       where: { email },
     });
 
-    if (accounts.length === 0) {
+    if (account && panel === 'web' && !isWebManagerRole(account.role)) {
       return null;
     }
 
-    if (accounts.length === 1) {
-      return accounts[0];
-    }
-
-    return (
-      accounts.find((account) => account.role === TherapistRole.THERAPIST) ??
-      accounts[0]
-    );
+    return account;
   }
 
   private async findValidResetToken(
     email: string,
     token: string,
-    role?: TherapistRole,
     panel?: 'web',
   ) {
     const therapist = await this.resolveAccountForPasswordReset(
       email.toLowerCase(),
-      role,
       panel,
     );
 
@@ -443,7 +370,10 @@ export class AuthService implements OnModuleInit {
 
     await this.prisma.passwordResetToken.deleteMany({
       where: {
-        OR: [{ expiresAt: { lt: new Date() } }, { createdAt: { lt: retentionCutoff } }],
+        OR: [
+          { expiresAt: { lt: new Date() } },
+          { createdAt: { lt: retentionCutoff } },
+        ],
       },
     });
   }

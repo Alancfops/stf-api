@@ -22,12 +22,7 @@ async function seedLongNameDemo() {
   const passwordHash = await hashPassword(DEMO_LONG_THERAPIST.password);
 
   const therapist = await prisma.therapist.upsert({
-    where: {
-      email_role: {
-        email: DEMO_LONG_THERAPIST.email,
-        role: TherapistRole.THERAPIST,
-      },
-    },
+    where: { email: DEMO_LONG_THERAPIST.email },
     update: {
       fullName: DEMO_LONG_THERAPIST.fullName,
       passwordHash,

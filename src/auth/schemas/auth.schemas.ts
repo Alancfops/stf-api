@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { TherapistRole } from '@prisma/client';
 
 export const fullNameSchema = z
   .string()
@@ -43,17 +42,13 @@ export const registerSchema = z.object({
 export const loginSchema = z.object({
   email: emailSchema,
   password: z.string().min(1, 'Informe a senha.'),
-  /** Mobile omite. Gerenciador web envia ADMIN para não autenticar a conta THERAPIST. */
-  role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
+  /** Gerenciador web envia: restringe a ajudante/professora. Mobile omite. */
   panel: z.literal('web').optional(),
 });
 
 export const forgotPasswordSchema = z.object({
   email: emailSchema,
-  /** Mobile omite (THERAPIST). Gerenciador web envia ADMIN. */
-  role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
+  /** Gerenciador web envia: restringe a ajudante/professora. Mobile omite. */
   panel: z.literal('web').optional(),
 });
 
@@ -65,8 +60,7 @@ export const resetTokenSchema = z
 export const verifyResetCodeSchema = z.object({
   email: emailSchema,
   token: resetTokenSchema,
-  role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
+  /** Gerenciador web envia: restringe a ajudante/professora. Mobile omite. */
   panel: z.literal('web').optional(),
 });
 
@@ -74,14 +68,15 @@ export const resetPasswordSchema = z.object({
   email: emailSchema,
   token: resetTokenSchema,
   password: passwordSchema,
-  role: z.nativeEnum(TherapistRole).optional(),
-  /** Gerenciador web envia quando não sabe a role exata (ASSISTANT/ADMIN). */
+  /** Gerenciador web envia: restringe a ajudante/professora. Mobile omite. */
   panel: z.literal('web').optional(),
 });
 
 export const adminAccessRequestSchema = z.object({
   email: emailSchema,
   fullName: fullNameSchema,
+  /** Senha da conta do app — prova que o solicitante é dono da conta THERAPIST. */
+  password: z.string().min(1, 'Informe a senha.'),
 });
 
 export const changePasswordSchema = z.object({

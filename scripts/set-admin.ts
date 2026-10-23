@@ -2,20 +2,23 @@
  * Define a conta da professora (ADMIN) do gerenciador web.
  *
  * O painel nunca cria, exclui nem rebaixa a conta ADMIN — este script é o único
- * caminho. Casos de uso:
+ * caminho. A conta é a mesma do app (um e-mail = uma conta), então a ordem não
+ * importa: se ela já se cadastrou no app, a conta é promovida; se não, é criada
+ * aqui e já serve para entrar no app. Casos de uso:
  *
- *   # Recuperar acesso (mesmo e-mail): gera nova senha temporária
- *   npm run admin:set -- --email professora@exemplo.com
- *
- *   # Criar a professora (quando ainda não existe ADMIN)
+ *   # Definir a professora — promove a conta do app (mantém a senha) ou cria uma nova
  *   npm run admin:set -- --email professora@exemplo.com --name "Profa. Fulana"
+ *
+ *   # Recuperar acesso (já é a professora): gera nova senha temporária (vale também no app)
+ *   npm run admin:set -- --email professora@exemplo.com
  *
  *   # Trocar a professora responsável: a conta ADMIN atual vira ajudante (ASSISTANT)
  *   npm run admin:set -- --email nova@exemplo.com --name "Profa. Nova" --replace
  *
- * A senha temporária é enviada para o e-mail da professora (MAIL_PROVIDER do
- * backend/.env); no primeiro login o gerenciador obriga a troca (mustChangePassword).
- * Se o envio falhar — ou com --no-email — ela é exibida uma única vez no terminal.
+ * Conta nova ou recuperação: a senha temporária vai para o e-mail da professora
+ * (MAIL_PROVIDER do backend/.env) e o gerenciador obriga a troca no 1º login. Se o
+ * envio falhar — ou com --no-email — ela é exibida uma única vez no terminal.
+ * Promoção: só um aviso por e-mail; ela entra com a senha que já usa no app.
  */
 import 'dotenv/config';
 
@@ -72,91 +75,108 @@ async function main() {
     }
 
     const current = admins[0];
-    const tempPassword = generateTempPassword();
-    const passwordHash = await hashPassword(tempPassword);
-    let fullName: string;
 
     if (current && current.email === args.email) {
-      fullName = args.name ?? current.fullName;
+      const tempPassword = generateTempPassword();
+      const fullName = args.name ?? current.fullName;
       await prisma.therapist.update({
         where: { id: current.id },
         data: {
-          passwordHash,
+          passwordHash: await hashPassword(tempPassword),
           mustChangePassword: true,
           ...(args.name ? { fullName: args.name } : {}),
         },
       });
       console.log(`>> Acesso da professora redefinido: ${current.email}`);
-    } else {
-      if (current && !args.replace) {
-        throw new Error(
-          `A professora atual é ${current.email}. Para substituí-la, rode novamente com --replace ` +
-            '(a conta atual vira ajudante e pode ser removida depois pelo painel).',
-        );
-      }
-      if (!args.name) {
-        throw new Error(
-          'Informe --name "<nome completo>" para criar a nova conta.',
-        );
-      }
+      await deliverAccessEmail(args, fullName, tempPassword);
+      return;
+    }
+
+    if (current && !args.replace) {
+      throw new Error(
+        `A professora atual é ${current.email}. Para substituí-la, rode novamente com --replace ` +
+          '(a conta atual vira ajudante e pode ser removida depois pelo painel).',
+      );
+    }
+
+    const existing = await prisma.therapist.findUnique({
+      where: { email: args.email },
+      select: { id: true, fullName: true },
+    });
+
+    if (!existing && !args.name) {
+      throw new Error(
+        'Informe --name "<nome completo>" para criar a nova conta.',
+      );
+    }
+
+    const tempPassword = existing ? undefined : generateTempPassword();
+    const fullName = args.name ?? existing!.fullName;
+
+    await prisma.$transaction(async (tx) => {
       if (current) {
-        const clash = await prisma.therapist.findUnique({
-          where: {
-            email_role: { email: current.email, role: TherapistRole.ASSISTANT },
-          },
-          select: { id: true },
+        // Mantém a linha (pacientes, audit log) — só remove o papel de professora.
+        await tx.therapist.update({
+          where: { id: current.id },
+          data: { role: TherapistRole.ASSISTANT },
         });
-        if (clash) {
-          throw new Error(
-            `${current.email} já tem uma conta de ajudante; remova-a pelo painel antes de usar --replace.`,
-          );
-        }
       }
 
-      fullName = args.name;
-      await prisma.$transaction(async (tx) => {
-        if (current) {
-          // Mantém a linha (e o audit log vinculado a ela) — só remove o papel de professora.
-          await tx.therapist.update({
-            where: { id: current.id },
-            data: { role: TherapistRole.ASSISTANT },
-          });
-        }
+      if (existing) {
+        // Conta do app (fisio ou ajudante): mesma senha, pacientes continuam com ela.
+        await tx.therapist.update({
+          where: { id: existing.id },
+          data: {
+            role: TherapistRole.ADMIN,
+            ...(args.name ? { fullName: args.name } : {}),
+          },
+        });
+      } else {
         await tx.therapist.create({
           data: {
             email: args.email,
             fullName,
-            passwordHash,
+            passwordHash: await hashPassword(tempPassword!),
             role: TherapistRole.ADMIN,
             mustChangePassword: true,
           },
         });
-      });
-
-      if (current) {
-        console.log(
-          `>> ${current.email} deixou de ser professora (agora é ajudante).`,
-        );
       }
-      console.log(`>> Professora definida: ${args.email}`);
-    }
+    });
 
-    await deliverTempPassword(args, fullName, tempPassword);
+    if (current) {
+      console.log(
+        `>> ${current.email} deixou de ser professora (agora é ajudante).`,
+      );
+    }
+    console.log(
+      existing
+        ? `>> Conta do app promovida a professora: ${args.email} (senha mantida).`
+        : `>> Professora definida: ${args.email}`,
+    );
+
+    await deliverAccessEmail(args, fullName, tempPassword);
   } finally {
     await prisma.$disconnect();
   }
 }
 
-/** Envia a senha por e-mail; em falha, exibe no terminal para não bloquear o acesso. */
-async function deliverTempPassword(
+/**
+ * Avisa a professora por e-mail. Com senha temporária, em falha (ou --no-email)
+ * exibe a senha no terminal para não bloquear o acesso.
+ */
+async function deliverAccessEmail(
   args: Args,
   fullName: string,
-  tempPassword: string,
+  tempPassword: string | undefined,
 ) {
-  const printPassword = () =>
-    console.log(
-      `>> Senha temporária (troca obrigatória no 1º login): ${tempPassword}`,
-    );
+  const printPassword = () => {
+    if (tempPassword) {
+      console.log(
+        `>> Senha temporária (troca obrigatória no 1º login no gerenciador): ${tempPassword}`,
+      );
+    }
+  };
 
   if (args.noEmail) {
     printPassword();
@@ -174,14 +194,18 @@ async function deliverTempPassword(
       kind: 'admin-account',
     });
     console.log(
-      `>> Senha temporária enviada para ${args.email} (troca obrigatória no 1º login).`,
+      tempPassword
+        ? `>> Senha temporária enviada para ${args.email} (troca obrigatória no 1º login).`
+        : `>> Aviso de acesso enviado para ${args.email}.`,
     );
   } catch (error) {
     console.error(
       `>> Não foi possível enviar o e-mail: ${error instanceof Error ? error.message : error}`,
     );
-    console.log('>> Repasse a senha abaixo por um canal privado:');
-    printPassword();
+    if (tempPassword) {
+      console.log('>> Repasse a senha abaixo por um canal privado:');
+      printPassword();
+    }
   }
 }
 

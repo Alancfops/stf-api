@@ -11,7 +11,12 @@ import {
   Res,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 import { z } from 'zod';
 
@@ -48,16 +53,26 @@ export class AdminController {
     @Query(new ZodValidationPipe(listAccessRequestsQuerySchema))
     query: z.infer<typeof listAccessRequestsQuerySchema>,
   ) {
-    return this.adminService.listAccessRequests(admin.therapistId, admin.role, query);
+    return this.adminService.listAccessRequests(
+      admin.therapistId,
+      admin.role,
+      query,
+    );
   }
 
   @Post('access-requests/:id/approve')
-  @ApiOperation({ summary: 'Aprova solicitação — cria ASSISTANT com senha temporária' })
+  @ApiOperation({
+    summary: 'Aprova solicitação — promove a conta do app a ASSISTANT',
+  })
   approveAccessRequest(
     @CurrentTherapist() admin: AuthenticatedTherapist,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.adminService.approveAccessRequest(admin.therapistId, id, admin.role);
+    return this.adminService.approveAccessRequest(
+      admin.therapistId,
+      id,
+      admin.role,
+    );
   }
 
   @Post('access-requests/:id/reject')
@@ -66,26 +81,40 @@ export class AdminController {
     @CurrentTherapist() admin: AuthenticatedTherapist,
     @Param('id', ParseUUIDPipe) id: string,
   ) {
-    return this.adminService.rejectAccessRequest(admin.therapistId, id, admin.role);
+    return this.adminService.rejectAccessRequest(
+      admin.therapistId,
+      id,
+      admin.role,
+    );
+  }
+
+  @Post('assistants/:id/revoke')
+  @ApiOperation({
+    summary: 'Revoga acesso de ajudante — conta volta a THERAPIST (ADMIN)',
+  })
+  revokeAssistant(
+    @CurrentTherapist() admin: AuthenticatedTherapist,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.adminService.revokeAssistant(admin.therapistId, id, admin.role);
   }
 
   @Get('therapists')
-  @ApiOperation({ summary: 'GW002 — Lista fisioterapeutas (escopo admin)' })
+  @ApiOperation({
+    summary:
+      'GW002 — Lista todas as contas do app (fisio, ajudante, professora)',
+  })
   listTherapists(
-    @CurrentTherapist() admin: AuthenticatedTherapist,
     @Query(new ZodValidationPipe(listTherapistsQuerySchema))
     query: z.infer<typeof listTherapistsQuerySchema>,
   ) {
-    return this.adminService.listTherapists(query, admin.role);
+    return this.adminService.listTherapists(query);
   }
 
   @Get('therapists/:id')
   @ApiOperation({ summary: 'GW003 — Detalhe do fisioterapeuta + pacientes' })
-  getTherapist(
-    @CurrentTherapist() admin: AuthenticatedTherapist,
-    @Param('id', ParseUUIDPipe) id: string,
-  ) {
-    return this.adminService.getTherapist(id, admin.role);
+  getTherapist(@Param('id', ParseUUIDPipe) id: string) {
+    return this.adminService.getTherapist(id);
   }
 
   @Delete('therapists/:id')
@@ -125,7 +154,10 @@ export class AdminController {
 
   @Get('patients/:id/instruments/:code/timeseries')
   @ApiOperation({ summary: 'GW008 — Série temporal para gráfico (RF012)' })
-  getPatientTimeseries(@Param('id', ParseUUIDPipe) id: string, @Param('code') code: string) {
+  getPatientTimeseries(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('code') code: string,
+  ) {
     return this.adminService.getPatientTimeseries(id, code);
   }
 
@@ -140,7 +172,9 @@ export class AdminController {
   }
 
   @Post('patients/:id/transfer')
-  @ApiOperation({ summary: 'GW005 — Transfere paciente para outro fisioterapeuta' })
+  @ApiOperation({
+    summary: 'GW005 — Transfere paciente para outro fisioterapeuta',
+  })
   transferPatient(
     @CurrentTherapist() admin: { therapistId: string },
     @Param('id', ParseUUIDPipe) id: string,
@@ -151,27 +185,34 @@ export class AdminController {
   }
 
   @Post('reports/assessments/:assessmentId')
-  @ApiOperation({ summary: 'GW009 — Gera PDF de avaliação finalizada (escopo admin)' })
+  @ApiOperation({
+    summary: 'GW009 — Gera PDF de avaliação finalizada (escopo admin)',
+  })
   @ApiProduces('application/pdf')
   async generateAssessmentReport(
     @CurrentTherapist() admin: { therapistId: string },
     @Param('assessmentId', ParseUUIDPipe) assessmentId: string,
     @Res() response: Response,
   ) {
-    const { pdf, filename } = await this.reportsService.generateAssessmentReportForAdmin(
-      assessmentId,
-    );
+    const { pdf, filename } =
+      await this.reportsService.generateAssessmentReportForAdmin(assessmentId);
 
     await this.adminService.logReportDownload(admin.therapistId, assessmentId);
 
     response.status(201);
     response.setHeader('Content-Type', 'application/pdf');
-    response.setHeader('Content-Disposition', toContentDispositionValue(filename));
+    response.setHeader(
+      'Content-Disposition',
+      toContentDispositionValue(filename),
+    );
     response.send(pdf);
   }
 
   @Get('audit-logs')
-  @ApiOperation({ summary: 'GW010 — Trilha de auditoria administrativa (leitura para qualquer role web)' })
+  @ApiOperation({
+    summary:
+      'GW010 — Trilha de auditoria administrativa (leitura para qualquer role web)',
+  })
   listAuditLogs(
     @Query(new ZodValidationPipe(listAuditLogsQuerySchema))
     query: z.infer<typeof listAuditLogsQuerySchema>,

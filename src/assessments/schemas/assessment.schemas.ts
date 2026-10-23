@@ -48,7 +48,7 @@ const instrumentCodesQuerySchema = z.preprocess(
     if (value === undefined || value === null || value === '') {
       return undefined;
     }
-    return Array.isArray(value) ? value : [value];
+    return Array.isArray(value) ? (value as unknown[]) : [value];
   },
   z
     .array(z.string())
@@ -76,7 +76,9 @@ export const listRecentAssessmentsQuerySchema = z.object({
   instrumentCode: instrumentCodesQuerySchema,
 });
 
-export type ListRecentAssessmentsQuery = z.infer<typeof listRecentAssessmentsQuerySchema>;
+export type ListRecentAssessmentsQuery = z.infer<
+  typeof listRecentAssessmentsQuerySchema
+>;
 
 export function assertDraftInstrumentSupported(instrumentCode: string) {
   if (!isImplementedInstrumentCode(instrumentCode as InstrumentCode)) {

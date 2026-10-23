@@ -52,7 +52,10 @@ export function scoreMeem(payload: MeemPayload): number {
   return MEEM_ITEM_KEYS.reduce((total, key) => total + payload[key], 0);
 }
 
-export function classifyMeem(rawValue: number, schoolingBandUsed: (typeof SCHOOLING_BAND_VALUES)[number]) {
+export function classifyMeem(
+  rawValue: number,
+  schoolingBandUsed: (typeof SCHOOLING_BAND_VALUES)[number],
+) {
   const cutoff = BRUCKI_CUTOFF[schoolingBandUsed];
   const aboveCutoff = rawValue >= cutoff;
 

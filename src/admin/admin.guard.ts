@@ -1,4 +1,9 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { TherapistRole } from '@prisma/client';
 
 import { AuthenticatedTherapist } from '../common/decorators/current-therapist.decorator';
@@ -6,8 +11,13 @@ import { AuthenticatedTherapist } from '../common/decorators/current-therapist.d
 @Injectable()
 export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const request = context.switchToHttp().getRequest<{ user: AuthenticatedTherapist }>();
-    const webRoles: TherapistRole[] = [TherapistRole.ASSISTANT, TherapistRole.ADMIN];
+    const request = context
+      .switchToHttp()
+      .getRequest<{ user: AuthenticatedTherapist }>();
+    const webRoles: TherapistRole[] = [
+      TherapistRole.ASSISTANT,
+      TherapistRole.ADMIN,
+    ];
     if (!request.user?.role || !webRoles.includes(request.user.role)) {
       throw new ForbiddenException('Acesso restrito a administradores.');
     }

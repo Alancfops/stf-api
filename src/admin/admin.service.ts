@@ -522,7 +522,7 @@ export class AdminService {
     query: ListAccessRequestsQuery,
   ) {
     this.assertCanManageAccessRequests(requesterRole);
-    const status = query.status as AdminAccessRequestStatus;
+    const status = query.status;
     const requests = await this.prisma.adminAccessRequest.findMany({
       where: { status },
       orderBy: { createdAt: 'desc' },
@@ -852,7 +852,7 @@ export class AdminService {
 
   private asRecord(value: Prisma.JsonValue): Record<string, unknown> {
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      return value as Record<string, unknown>;
+      return value;
     }
     return {};
   }

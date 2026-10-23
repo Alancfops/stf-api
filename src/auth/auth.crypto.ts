@@ -5,7 +5,8 @@ import * as argon2 from 'argon2';
 import { passwordSchema } from './schemas/auth.schemas';
 
 export async function hashPassword(plain: string): Promise<string> {
-  return argon2.hash(plain, { type: argon2.argon2id });
+  // argon2 tipa o retorno como Promise<any>; sem `raw: true` o resultado é o hash codificado (string).
+  return argon2.hash(plain, { type: argon2.argon2id }) as Promise<string>;
 }
 
 export async function verifyPassword(

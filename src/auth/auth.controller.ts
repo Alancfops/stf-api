@@ -23,19 +23,25 @@ export class AuthController {
 
   @Post('register')
   @ApiOperation({ summary: 'RF001 — Cadastro do fisioterapeuta' })
-  register(@Body(new ZodValidationPipe(registerSchema)) body: z.infer<typeof registerSchema>) {
+  register(
+    @Body(new ZodValidationPipe(registerSchema))
+    body: z.infer<typeof registerSchema>,
+  ) {
     return this.authService.register(body);
   }
 
   @Post('login')
   @ApiOperation({ summary: 'RF002 — Login do fisioterapeuta' })
-  login(@Body(new ZodValidationPipe(loginSchema)) body: z.infer<typeof loginSchema>) {
+  login(
+    @Body(new ZodValidationPipe(loginSchema)) body: z.infer<typeof loginSchema>,
+  ) {
     return this.authService.login(body);
   }
 
   @Post('admin-access-request')
   @ApiOperation({
-    summary: 'Solicitar acesso de ajudante (público) — exige e-mail e senha da conta do app',
+    summary:
+      'Solicitar acesso de ajudante (público) — exige e-mail e senha da conta do app',
   })
   requestAdminAccess(
     @Body(new ZodValidationPipe(adminAccessRequestSchema))
@@ -62,15 +68,19 @@ export class AuthController {
   @Post('forgot-password')
   @ApiOperation({ summary: 'RF003 — Solicitar código de recuperação' })
   forgotPassword(
-    @Body(new ZodValidationPipe(forgotPasswordSchema)) body: z.infer<typeof forgotPasswordSchema>,
+    @Body(new ZodValidationPipe(forgotPasswordSchema))
+    body: z.infer<typeof forgotPasswordSchema>,
   ) {
     return this.authService.forgotPassword(body);
   }
 
   @Post('verify-reset-code')
-  @ApiOperation({ summary: 'RF003 — Validar código antes de definir nova senha' })
+  @ApiOperation({
+    summary: 'RF003 — Validar código antes de definir nova senha',
+  })
   verifyResetCode(
-    @Body(new ZodValidationPipe(verifyResetCodeSchema)) body: z.infer<typeof verifyResetCodeSchema>,
+    @Body(new ZodValidationPipe(verifyResetCodeSchema))
+    body: z.infer<typeof verifyResetCodeSchema>,
   ) {
     return this.authService.verifyResetCode(body);
   }
@@ -78,7 +88,8 @@ export class AuthController {
   @Post('reset-password')
   @ApiOperation({ summary: 'RF003 — Redefinir senha com código' })
   resetPassword(
-    @Body(new ZodValidationPipe(resetPasswordSchema)) body: z.infer<typeof resetPasswordSchema>,
+    @Body(new ZodValidationPipe(resetPasswordSchema))
+    body: z.infer<typeof resetPasswordSchema>,
   ) {
     return this.authService.resetPassword(body);
   }

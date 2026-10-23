@@ -7,16 +7,16 @@ import {
 import type { InstrumentHandler } from '../types';
 import { InstrumentPayloadError } from '../types';
 
-const BERG_ITEM_KEYS = Array.from({ length: 14 }, (_, index) => `berg_${index + 1}`);
+const BERG_ITEM_KEYS = Array.from(
+  { length: 14 },
+  (_, index) => `berg_${index + 1}`,
+);
 
 const bergItemSchema = z.number().int().min(0).max(4);
 
 const bergPayloadSchema = z
   .object(
-    Object.fromEntries(BERG_ITEM_KEYS.map((key) => [key, bergItemSchema])) as Record<
-      string,
-      typeof bergItemSchema
-    >,
+    Object.fromEntries(BERG_ITEM_KEYS.map((key) => [key, bergItemSchema])),
   )
   .strict();
 

@@ -1,4 +1,7 @@
-import { formatKatzLevel, REPORT_INSTRUMENT_ITEMS } from './report-instrument-items.constants';
+import {
+  formatKatzLevel,
+  REPORT_INSTRUMENT_ITEMS,
+} from './report-instrument-items.constants';
 
 const MAX_MENTIONED_ITEMS = 3;
 
@@ -111,7 +114,10 @@ function formatHighlight(
     return 'Nenhum item destacado com dificuldade acentuada nesta avaliação.';
   }
 
-  candidates.sort((a, b) => b.severity - a.severity || a.label.localeCompare(b.label, 'pt-BR'));
+  candidates.sort(
+    (a, b) =>
+      b.severity - a.severity || a.label.localeCompare(b.label, 'pt-BR'),
+  );
 
   const top = candidates.slice(0, MAX_MENTIONED_ITEMS);
   const parts = top.map((item) => `${item.label} (${item.detail})`);

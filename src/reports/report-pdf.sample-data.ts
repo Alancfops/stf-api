@@ -5,7 +5,9 @@ type SampleReportOptions = {
 };
 
 /** Dados fictícios alinhados ao molde clínico em `output/modelo_relatorio_*.pdf`. */
-export function createSampleReportPdfData(options: SampleReportOptions = {}): ReportPdfData {
+export function createSampleReportPdfData(
+  options: SampleReportOptions = {},
+): ReportPdfData {
   const { includeCrefito = true } = options;
 
   return {
@@ -28,7 +30,8 @@ export function createSampleReportPdfData(options: SampleReportOptions = {}): Re
       rawLabel: 'Tempo: 12,5 s',
       resultDetailLabel: '12,5 segundos',
       classificationLabel: 'Normal / Baixo Risco',
-      referenceLabel: 'TUG < 10 s = Normal; 10–20 s = Risco Moderado; > 20 s = Risco Elevado',
+      referenceLabel:
+        'TUG < 10 s = Normal; 10–20 s = Risco Moderado; > 20 s = Risco Elevado',
       interpretation:
         'Tempo dentro da faixa esperada para adultos independentes. Baixo risco funcional para locomoção. Recomenda-se monitoramento longitudinal.',
       notesObservation: null,

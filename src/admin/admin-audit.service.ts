@@ -28,7 +28,10 @@ export class AdminAuditService {
   }
 
   /** Registra download de PDF (admin ou fisioterapeuta). */
-  async logReportDownload(actorId: string, assessmentId: string): Promise<void> {
+  async logReportDownload(
+    actorId: string,
+    assessmentId: string,
+  ): Promise<void> {
     const assessment = await this.prisma.assessment.findUnique({
       where: { id: assessmentId },
       select: {
@@ -38,11 +41,17 @@ export class AdminAuditService {
       },
     });
 
-    await this.log(actorId, AdminAuditAction.DOWNLOAD_REPORT, 'Assessment', assessmentId, {
-      patientId: assessment?.patient.id ?? null,
-      patientName: assessment?.patient.fullName ?? null,
-      instrumentCode: assessment?.instrumentCode ?? null,
-      finalizedAt: assessment?.finalizedAt?.toISOString() ?? null,
-    });
+    await this.log(
+      actorId,
+      AdminAuditAction.DOWNLOAD_REPORT,
+      'Assessment',
+      assessmentId,
+      {
+        patientId: assessment?.patient.id ?? null,
+        patientName: assessment?.patient.fullName ?? null,
+        instrumentCode: assessment?.instrumentCode ?? null,
+        finalizedAt: assessment?.finalizedAt?.toISOString() ?? null,
+      },
+    );
   }
 }

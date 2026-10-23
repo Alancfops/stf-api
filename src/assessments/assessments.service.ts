@@ -14,7 +14,10 @@ import {
 } from '../common/constants/instruments';
 import type { SchoolingBand } from '../common/constants/schooling-band';
 import { PrismaService } from '../prisma/prisma.service';
-import { getInstrumentHandler, InstrumentPayloadError } from './instruments/registry';
+import {
+  getInstrumentHandler,
+  InstrumentPayloadError,
+} from './instruments/registry';
 import {
   assertDraftInstrumentSupported,
   CreateDraftInput,
@@ -81,7 +84,10 @@ export type TimeseriesResponse = {
 export class AssessmentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async createDraft(therapistId: string, input: CreateDraftInput): Promise<AssessmentResponse> {
+  async createDraft(
+    therapistId: string,
+    input: CreateDraftInput,
+  ): Promise<AssessmentResponse> {
     const support = assertDraftInstrumentSupported(input.instrumentCode);
     if (!support.supported) {
       throw new NotImplementedException(support.message);
@@ -109,15 +115,22 @@ export class AssessmentsService {
     assessmentId: string,
     input: UpdateDraftInput,
   ): Promise<AssessmentResponse> {
-    const assessment = await this.findOwnedAssessment(therapistId, assessmentId);
+    const assessment = await this.findOwnedAssessment(
+      therapistId,
+      assessmentId,
+    );
 
     if (assessment.status !== AssessmentStatus.DRAFT) {
-      throw new ConflictException('Avaliação já finalizada e não pode ser alterada.');
+      throw new ConflictException(
+        'Avaliação já finalizada e não pode ser alterada.',
+      );
     }
 
     const currentPayload = this.asRecord(assessment.payload);
     const nextPayload =
-      input.payload === undefined ? currentPayload : { ...currentPayload, ...input.payload };
+      input.payload === undefined
+        ? currentPayload
+        : { ...currentPayload, ...input.payload };
 
     const updated = await this.prisma.assessment.update({
       where: { id: assessmentId },
@@ -136,8 +149,14 @@ export class AssessmentsService {
     return this.toResponse(updated);
   }
 
-  async finalize(therapistId: string, assessmentId: string): Promise<FinalizeAssessmentResponse> {
-    const assessment = await this.findOwnedAssessment(therapistId, assessmentId);
+  async finalize(
+    therapistId: string,
+    assessmentId: string,
+  ): Promise<FinalizeAssessmentResponse> {
+    const assessment = await this.findOwnedAssessment(
+      therapistId,
+      assessmentId,
+    );
 
     if (assessment.status !== AssessmentStatus.DRAFT) {
       throw new ConflictException('Avaliação já finalizada.');
@@ -145,14 +164,16 @@ export class AssessmentsService {
 
     const instrumentCode = assessment.instrumentCode as InstrumentCode;
     if (!isImplementedInstrumentCode(instrumentCode)) {
-      throw new NotImplementedException('Instrumento ainda não implementado no servidor.');
+      throw new NotImplementedException(
+        'Instrumento ainda não implementado no servidor.',
+      );
     }
 
     const handler = getInstrumentHandler(instrumentCode);
 
     let parsedPayload: Record<string, unknown>;
     try {
-      parsedPayload = handler.parsePayload(assessment.payload) as Record<string, unknown>;
+      parsedPayload = handler.parsePayload(assessment.payload);
     } catch (error) {
       if (error instanceof InstrumentPayloadError) {
         throw new BadRequestException({
@@ -164,7 +185,8 @@ export class AssessmentsService {
       throw error;
     }
 
-    const schoolingBandUsed = assessment.schoolingBandUsed as SchoolingBand | null;
+    const schoolingBandUsed =
+      assessment.schoolingBandUsed as SchoolingBand | null;
 
     if (instrumentCode === 'MEEM' && !schoolingBandUsed) {
       throw new BadRequestException({
@@ -223,7 +245,8 @@ export class AssessmentsService {
           rawLabel: classification.rawLabel,
           classificationLabel: classification.classificationLabel,
           classificationCode: classification.classificationCode,
-          classificationMeta: classification.classificationMeta as Prisma.InputJsonValue,
+          classificationMeta:
+            classification.classificationMeta as Prisma.InputJsonValue,
         },
       });
 
@@ -319,7 +342,11 @@ export class AssessmentsService {
 
   async listRecent(
     therapistId: string,
-    query: { limit?: number; search?: string; instrumentCode?: InstrumentCode[] },
+    query: {
+      limit?: number;
+      search?: string;
+      instrumentCode?: InstrumentCode[];
+    },
   ) {
     const safeLimit = Math.min(Math.max(query.limit ?? 10, 1), 50);
     const search = query.search?.trim();
@@ -360,18 +387,16 @@ export class AssessmentsService {
     });
 
     return {
-      data: assessments.map(
-        (assessment): RecentActivityItem => ({
-          id: assessment.id,
-          patientId: assessment.patientId,
-          patientName: assessment.patient.fullName,
-          patientGender: assessment.patient.gender,
-          instrumentCode: assessment.instrumentCode,
-          instrumentDisplayName: assessment.instrument.displayName,
-          finalizedAt: assessment.finalizedAt!.toISOString(),
-          resultSummary: assessment.result!.rawLabel,
-        }),
-      ),
+      data: assessments.map((assessment): RecentActivityItem => ({
+        id: assessment.id,
+        patientId: assessment.patientId,
+        patientName: assessment.patient.fullName,
+        patientGender: assessment.patient.gender,
+        instrumentCode: assessment.instrumentCode,
+        instrumentDisplayName: assessment.instrument.displayName,
+        finalizedAt: assessment.finalizedAt!.toISOString(),
+        resultSummary: assessment.result!.rawLabel,
+      })),
     };
   }
 
@@ -397,7 +422,9 @@ export class AssessmentsService {
         id: assessment.id,
         instrumentCode: assessment.instrumentCode,
         instrumentDisplayName: assessment.instrument.displayName,
-        finalizedAt: assessment.finalizedAt?.toISOString() ?? assessment.startedAt.toISOString(),
+        finalizedAt:
+          assessment.finalizedAt?.toISOString() ??
+          assessment.startedAt.toISOString(),
         result: assessment.result
           ? {
               rawValue: Number(assessment.result.rawValue),
@@ -410,7 +437,11 @@ export class AssessmentsService {
     };
   }
 
-  async findByPatientAndId(therapistId: string, patientId: string, assessmentId: string) {
+  async findByPatientAndId(
+    therapistId: string,
+    patientId: string,
+    assessmentId: string,
+  ) {
     await this.assertPatientOwned(therapistId, patientId);
 
     const assessment = await this.prisma.assessment.findFirst({
@@ -466,7 +497,7 @@ export class AssessmentsService {
 
   private asRecord(value: Prisma.JsonValue): Record<string, unknown> {
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      return value as Record<string, unknown>;
+      return value;
     }
     return {};
   }
@@ -506,7 +537,10 @@ export class AssessmentsService {
             rawLabel: assessment.result.rawLabel,
             classificationLabel: assessment.result.classificationLabel,
             classificationCode: assessment.result.classificationCode,
-            classificationMeta: assessment.result.classificationMeta as Record<string, unknown>,
+            classificationMeta: assessment.result.classificationMeta as Record<
+              string,
+              unknown
+            >,
             computedAt: assessment.result.computedAt.toISOString(),
           }
         : null,

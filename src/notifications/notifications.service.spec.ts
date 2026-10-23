@@ -3,6 +3,9 @@ import { Test, TestingModule } from '@nestjs/testing';
 
 import { NotificationsService } from './notifications.service';
 
+/** `expect.stringContaining` é tipado como `any`; o helper mantém o matcher tipado. */
+const containing = (text: string): unknown => expect.stringContaining(text);
+
 const resendSendMock = jest.fn();
 const gmailSendMailMock = jest.fn();
 
@@ -59,7 +62,10 @@ describe('NotificationsService', () => {
   beforeEach(() => {
     resendSendMock.mockReset();
     gmailSendMailMock.mockReset();
-    resendSendMock.mockResolvedValue({ data: { id: 'email_123' }, error: null });
+    resendSendMock.mockResolvedValue({
+      data: { id: 'email_123' },
+      error: null,
+    });
     gmailSendMailMock.mockResolvedValue({ messageId: 'gmail_123' });
   });
 
@@ -71,9 +77,9 @@ describe('NotificationsService', () => {
       expect.objectContaining({
         from: 'Sênior Teste Funcional <onboarding@resend.dev>',
         to: 'fisio@email.com',
-        subject: expect.stringContaining('código de recuperação'),
-        text: expect.stringContaining('123456'),
-        html: expect.stringContaining('123456'),
+        subject: containing('código de recuperação'),
+        text: containing('123456'),
+        html: containing('123456'),
       }),
     );
   });
@@ -98,9 +104,9 @@ describe('NotificationsService', () => {
       expect.objectContaining({
         from: 'Sênior Teste Funcional <fisio@gmail.com>',
         to: 'aluno@email.com',
-        subject: expect.stringContaining('código de recuperação'),
-        text: expect.stringContaining('654321'),
-        html: expect.stringContaining('654321'),
+        subject: containing('código de recuperação'),
+        text: containing('654321'),
+        html: containing('654321'),
       }),
     );
   });

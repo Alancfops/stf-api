@@ -39,7 +39,10 @@ async function bootstrap() {
 
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
-  app.useGlobalFilters(new FallbackExceptionFilter(), new HttpExceptionFilter());
+  app.useGlobalFilters(
+    new FallbackExceptionFilter(),
+    new HttpExceptionFilter(),
+  );
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle('Sênior Teste Funcional API')

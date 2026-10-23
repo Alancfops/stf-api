@@ -50,14 +50,20 @@ describe('MEEM scorer', () => {
   });
 
   it('classifica abaixo do corte Brucki', () => {
-    expect(classifyMeem(24, '1_4_anos').classificationCode).toBe('MEEM_BELOW_CUTOFF');
+    expect(classifyMeem(24, '1_4_anos').classificationCode).toBe(
+      'MEEM_BELOW_CUTOFF',
+    );
   });
 
   it('classifica no/ acima do corte Brucki', () => {
-    expect(classifyMeem(25, '1_4_anos').classificationCode).toBe('MEEM_ABOVE_CUTOFF');
+    expect(classifyMeem(25, '1_4_anos').classificationCode).toBe(
+      'MEEM_ABOVE_CUTOFF',
+    );
   });
 
   it('rejeita bloco acima do teto', () => {
-    expect(() => parseMeemPayload({ ...zeroPayload, meem_registro: 4 })).toThrow();
+    expect(() =>
+      parseMeemPayload({ ...zeroPayload, meem_registro: 4 }),
+    ).toThrow();
   });
 });

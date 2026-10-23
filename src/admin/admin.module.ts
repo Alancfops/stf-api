@@ -10,7 +10,13 @@ import { AdminGuard } from './admin.guard';
 import { AdminService } from './admin.service';
 
 @Module({
-  imports: [AuthModule, AssessmentsModule, ReportsModule, AuditModule, NotificationsModule],
+  imports: [
+    AuthModule,
+    AssessmentsModule,
+    ReportsModule,
+    AuditModule,
+    NotificationsModule,
+  ],
   controllers: [AdminController],
   providers: [AdminService, AdminGuard],
 })

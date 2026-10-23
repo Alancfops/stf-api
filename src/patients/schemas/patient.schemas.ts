@@ -45,7 +45,9 @@ export const createPatientSchema = z.object({
     .refine((value) => phoneRegex.test(value) || emailRegex.test(value), {
       message: 'Informe um e-mail ou telefone celular válido.',
     }),
-  schoolingBand: z.enum(SCHOOLING_BAND_VALUES, { message: 'Selecione a escolaridade.' }),
+  schoolingBand: z.enum(SCHOOLING_BAND_VALUES, {
+    message: 'Selecione a escolaridade.',
+  }),
   avatarImage: avatarImageSchema.optional(),
 });
 

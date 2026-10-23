@@ -1,5 +1,17 @@
-import { Controller, Param, ParseUUIDPipe, Post, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProduces,
+  ApiTags,
+} from '@nestjs/swagger';
 import type { Response } from 'express';
 
 import { AdminAuditService } from '../admin/admin-audit.service';
@@ -19,23 +31,29 @@ export class ReportsController {
   ) {}
 
   @Post('assessments/:assessmentId')
-  @ApiOperation({ summary: 'RF013 — Gera relatório PDF da avaliação finalizada' })
+  @ApiOperation({
+    summary: 'RF013 — Gera relatório PDF da avaliação finalizada',
+  })
   @ApiProduces('application/pdf')
   async generateAssessmentReport(
     @CurrentTherapist() therapist: { therapistId: string },
     @Param('assessmentId', ParseUUIDPipe) assessmentId: string,
     @Res() response: Response,
   ) {
-    const { pdf, filename } = await this.reportsService.generateAssessmentReport(
-      therapist.therapistId,
-      assessmentId,
-    );
+    const { pdf, filename } =
+      await this.reportsService.generateAssessmentReport(
+        therapist.therapistId,
+        assessmentId,
+      );
 
     await this.audit.logReportDownload(therapist.therapistId, assessmentId);
 
     response.status(201);
     response.setHeader('Content-Type', 'application/pdf');
-    response.setHeader('Content-Disposition', toContentDispositionValue(filename));
+    response.setHeader(
+      'Content-Disposition',
+      toContentDispositionValue(filename),
+    );
     response.send(pdf);
   }
 }

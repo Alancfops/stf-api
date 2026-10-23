@@ -14,7 +14,9 @@ const HANDLERS: Record<ImplementedInstrumentCode, InstrumentHandler> = {
   MEEM: meemHandler,
 };
 
-export function getInstrumentHandler(code: ImplementedInstrumentCode): InstrumentHandler {
+export function getInstrumentHandler(
+  code: ImplementedInstrumentCode,
+): InstrumentHandler {
   return HANDLERS[code];
 }
 

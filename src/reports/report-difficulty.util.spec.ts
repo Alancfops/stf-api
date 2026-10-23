@@ -3,7 +3,10 @@ import { buildReportDifficultyHighlight } from './report-difficulty.util';
 describe('buildReportDifficultyHighlight', () => {
   it('resume o item Berg com pior pontuação em uma frase', () => {
     const payload = Object.fromEntries(
-      Array.from({ length: 14 }, (_, index) => [`berg_${index + 1}`, index === 0 ? 0 : 4]),
+      Array.from({ length: 14 }, (_, index) => [
+        `berg_${index + 1}`,
+        index === 0 ? 0 : 4,
+      ]),
     );
 
     expect(buildReportDifficultyHighlight('BERG', payload)).toBe(
@@ -41,6 +44,8 @@ describe('buildReportDifficultyHighlight', () => {
       Array.from({ length: 14 }, (_, index) => [`berg_${index + 1}`, 4]),
     );
 
-    expect(buildReportDifficultyHighlight('BERG', payload)).toContain('Nenhum item destacado');
+    expect(buildReportDifficultyHighlight('BERG', payload)).toContain(
+      'Nenhum item destacado',
+    );
   });
 });

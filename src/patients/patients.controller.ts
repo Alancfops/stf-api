@@ -1,4 +1,15 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 
@@ -24,10 +35,13 @@ export class PatientsController {
   ) {}
 
   @Get()
-  @ApiOperation({ summary: 'RF005 — Lista pacientes do fisioterapeuta autenticado' })
+  @ApiOperation({
+    summary: 'RF005 — Lista pacientes do fisioterapeuta autenticado',
+  })
   list(
     @CurrentTherapist() therapist: { therapistId: string },
-    @Query(new ZodValidationPipe(listPatientsQuerySchema)) query: z.infer<typeof listPatientsQuerySchema>,
+    @Query(new ZodValidationPipe(listPatientsQuerySchema))
+    query: z.infer<typeof listPatientsQuerySchema>,
   ) {
     return this.patientsService.list(therapist.therapistId, query);
   }
@@ -39,7 +53,11 @@ export class PatientsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Param('assessmentId', ParseUUIDPipe) assessmentId: string,
   ) {
-    return this.assessmentsService.findByPatientAndId(therapist.therapistId, id, assessmentId);
+    return this.assessmentsService.findByPatientAndId(
+      therapist.therapistId,
+      id,
+      assessmentId,
+    );
   }
 
   @Get(':id/assessments')
@@ -52,17 +70,26 @@ export class PatientsController {
   }
 
   @Get(':id/instruments/:code/timeseries')
-  @ApiOperation({ summary: 'RF012 — Série temporal de avaliações finalizadas por instrumento' })
+  @ApiOperation({
+    summary: 'RF012 — Série temporal de avaliações finalizadas por instrumento',
+  })
   timeseries(
     @CurrentTherapist() therapist: { therapistId: string },
     @Param('id', ParseUUIDPipe) id: string,
     @Param('code') code: string,
   ) {
-    return this.assessmentsService.getTimeseries(therapist.therapistId, id, code);
+    return this.assessmentsService.getTimeseries(
+      therapist.therapistId,
+      id,
+      code,
+    );
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'RF006 — Perfil do paciente (escopo do fisioterapeuta autenticado)' })
+  @ApiOperation({
+    summary:
+      'RF006 — Perfil do paciente (escopo do fisioterapeuta autenticado)',
+  })
   findOne(
     @CurrentTherapist() therapist: { therapistId: string },
     @Param('id', ParseUUIDPipe) id: string,
@@ -71,21 +98,29 @@ export class PatientsController {
   }
 
   @Patch(':id')
-  @ApiOperation({ summary: 'RF004 — Atualiza cadastro do paciente (escopo do fisioterapeuta autenticado)' })
+  @ApiOperation({
+    summary:
+      'RF004 — Atualiza cadastro do paciente (escopo do fisioterapeuta autenticado)',
+  })
   update(
     @CurrentTherapist() therapist: { therapistId: string },
     @Param('id', ParseUUIDPipe) id: string,
-    @Body(new ZodValidationPipe(updatePatientSchema)) body: z.infer<typeof updatePatientSchema>,
+    @Body(new ZodValidationPipe(updatePatientSchema))
+    body: z.infer<typeof updatePatientSchema>,
   ) {
     return this.patientsService.update(therapist.therapistId, id, body);
   }
 
   @Post()
   @HttpCode(201)
-  @ApiOperation({ summary: 'RF004 — Cadastro de paciente (escopo do fisioterapeuta autenticado)' })
+  @ApiOperation({
+    summary:
+      'RF004 — Cadastro de paciente (escopo do fisioterapeuta autenticado)',
+  })
   create(
     @CurrentTherapist() therapist: { therapistId: string },
-    @Body(new ZodValidationPipe(createPatientSchema)) body: z.infer<typeof createPatientSchema>,
+    @Body(new ZodValidationPipe(createPatientSchema))
+    body: z.infer<typeof createPatientSchema>,
   ) {
     return this.patientsService.create(therapist.therapistId, body);
   }

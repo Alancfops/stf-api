@@ -18,13 +18,21 @@ export const BRUCKI_CUTOFF: Record<SchoolingBand, number> = {
 
 export const BERG_CLASSIFICATION = [
   { max: 20, code: 'BERG_SEVERE', label: 'Risco gravíssimo de quedas (0–20)' },
-  { max: 40, code: 'BERG_MODERATE', label: 'Risco moderado a alto de quedas (21–40)' },
+  {
+    max: 40,
+    code: 'BERG_MODERATE',
+    label: 'Risco moderado a alto de quedas (21–40)',
+  },
   { max: 56, code: 'BERG_LOW', label: 'Baixo risco de quedas (41–56)' },
 ] as const;
 
 export const TINETTI_CLASSIFICATION = [
   { max: 18, code: 'TINETTI_HIGH', label: 'Alto risco de quedas (<19)' },
-  { max: 24, code: 'TINETTI_MODERATE', label: 'Risco moderado de quedas (19–24)' },
+  {
+    max: 24,
+    code: 'TINETTI_MODERATE',
+    label: 'Risco moderado de quedas (19–24)',
+  },
   { max: 28, code: 'TINETTI_LOW', label: 'Baixo risco de quedas (25–28)' },
 ] as const;
 

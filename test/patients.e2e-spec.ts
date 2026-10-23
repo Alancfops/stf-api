@@ -342,7 +342,9 @@ describe('Patients (e2e)', () => {
       .expect(200);
 
     expect(
-      femaleOnly.body.data.every((item: { gender: string }) => item.gender === 'feminino'),
+      femaleOnly.body.data.every(
+        (item: { gender: string }) => item.gender === 'feminino',
+      ),
     ).toBe(true);
 
     const byAgeDesc = await request(app.getHttpServer())
@@ -350,6 +352,8 @@ describe('Patients (e2e)', () => {
       .set('Authorization', `Bearer ${tokenA}`)
       .expect(200);
 
-    expect(byAgeDesc.body.data[0]?.age).toBeGreaterThanOrEqual(byAgeDesc.body.data[1]?.age ?? 0);
+    expect(byAgeDesc.body.data[0]?.age).toBeGreaterThanOrEqual(
+      byAgeDesc.body.data[1]?.age ?? 0,
+    );
   });
 });

@@ -60,7 +60,13 @@ describe('Auth (e2e)', () => {
       password: 'Abcd1234',
     };
 
-    await request(app.getHttpServer()).post('/auth/register').send(payload).expect(201);
-    await request(app.getHttpServer()).post('/auth/register').send(payload).expect(409);
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send(payload)
+      .expect(201);
+    await request(app.getHttpServer())
+      .post('/auth/register')
+      .send(payload)
+      .expect(409);
   });
 });

@@ -36,9 +36,11 @@ export class FallbackExceptionFilter implements ExceptionFilter {
     const payloadTooLarge =
       typeof error === 'object' &&
       error !== null &&
-      (('type' in error && (error as { type?: string }).type === 'entity.too.large') ||
+      (('type' in error &&
+        (error as { type?: string }).type === 'entity.too.large') ||
         ('status' in error && (error as { status?: number }).status === 413) ||
-        (error instanceof Error && /request entity too large/i.test(error.message)));
+        (error instanceof Error &&
+          /request entity too large/i.test(error.message)));
 
     if (payloadTooLarge) {
       response.status(HttpStatus.PAYLOAD_TOO_LARGE).json({
@@ -49,7 +51,6 @@ export class FallbackExceptionFilter implements ExceptionFilter {
     }
 
     if (process.env.NODE_ENV !== 'production') {
-      // eslint-disable-next-line no-console -- diagnóstico em dev (evita 500 opaco)
       console.error('[FallbackExceptionFilter]', error);
     }
 

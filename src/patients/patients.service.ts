@@ -33,7 +33,10 @@ export type PatientsListResponse = {
 export class PatientsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(therapistId: string, input: CreatePatientInput): Promise<PatientResponse> {
+  async create(
+    therapistId: string,
+    input: CreatePatientInput,
+  ): Promise<PatientResponse> {
     const patient = await this.prisma.patient.create({
       data: {
         therapistId,
@@ -94,7 +97,10 @@ export class PatientsService {
     return this.toResponse(patient);
   }
 
-  async findById(therapistId: string, patientId: string): Promise<PatientResponse> {
+  async findById(
+    therapistId: string,
+    patientId: string,
+  ): Promise<PatientResponse> {
     const patient = await this.prisma.patient.findFirst({
       where: {
         id: patientId,
@@ -109,7 +115,10 @@ export class PatientsService {
     return this.toResponse(patient);
   }
 
-  async list(therapistId: string, query: ListPatientsQuery): Promise<PatientsListResponse> {
+  async list(
+    therapistId: string,
+    query: ListPatientsQuery,
+  ): Promise<PatientsListResponse> {
     const search = query.search?.trim();
     const where = {
       therapistId,

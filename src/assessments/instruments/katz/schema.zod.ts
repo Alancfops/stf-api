@@ -1,20 +1,21 @@
 import { z } from 'zod';
 
-import { KATZ_STRATUM_LABELS, SCORING_RULE_VERSIONS } from '../../../scoring-rules';
+import {
+  KATZ_STRATUM_LABELS,
+  SCORING_RULE_VERSIONS,
+} from '../../../scoring-rules';
 import type { InstrumentHandler } from '../types';
 import { InstrumentPayloadError } from '../types';
 
 const KATZ_LEVEL = z.enum(['independente', 'assistencia', 'dependente']);
 
-const KATZ_ITEM_KEYS = Array.from({ length: 6 }, (_, index) => `katz_${index + 1}`);
+const KATZ_ITEM_KEYS = Array.from(
+  { length: 6 },
+  (_, index) => `katz_${index + 1}`,
+);
 
 const katzPayloadSchema = z
-  .object(
-    Object.fromEntries(KATZ_ITEM_KEYS.map((key) => [key, KATZ_LEVEL])) as Record<
-      string,
-      typeof KATZ_LEVEL
-    >,
-  )
+  .object(Object.fromEntries(KATZ_ITEM_KEYS.map((key) => [key, KATZ_LEVEL])))
   .strict();
 
 export type KatzPayload = z.infer<typeof katzPayloadSchema>;

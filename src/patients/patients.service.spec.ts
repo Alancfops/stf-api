@@ -4,7 +4,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import { PatientsService } from './patients.service';
 
 jest.mock('./patient-avatar.storage', () => ({
-  savePatientAvatar: jest.fn().mockResolvedValue('/uploads/patients/patient-1.jpg'),
+  savePatientAvatar: jest
+    .fn()
+    .mockResolvedValue('/uploads/patients/patient-1.jpg'),
 }));
 
 describe('PatientsService', () => {
@@ -155,6 +157,8 @@ describe('PatientsService', () => {
     expect(result.fullName).toBe('Maria Silva');
 
     prisma.patient.findFirst.mockResolvedValue(null);
-    await expect(service.findById('therapist-1', 'missing')).rejects.toThrow('Paciente não encontrado.');
+    await expect(service.findById('therapist-1', 'missing')).rejects.toThrow(
+      'Paciente não encontrado.',
+    );
   });
 });

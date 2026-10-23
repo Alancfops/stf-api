@@ -76,11 +76,15 @@ describe('Assessments (e2e)', () => {
   }
 
   it('GET /instruments retorna catálogo ordenado alfabeticamente', async () => {
-    const response = await request(app.getHttpServer()).get('/instruments').expect(200);
+    const response = await request(app.getHttpServer())
+      .get('/instruments')
+      .expect(200);
 
     expect(response.body).toHaveLength(5);
     expect(response.body[0].code).toBe('BERG');
-    expect(response.body.map((item: { code: string }) => item.code)).toContain('KATZ');
+    expect(response.body.map((item: { code: string }) => item.code)).toContain(
+      'KATZ',
+    );
   });
 
   it('fluxo TUG: draft → patch → finalize com média correta', async () => {
@@ -392,7 +396,10 @@ describe('Assessments (e2e)', () => {
 
       if (code === 'BERG') {
         const bergPayload = Object.fromEntries(
-          Array.from({ length: 14 }, (_, index) => [`berg_${index + 1}`, bergScore]),
+          Array.from({ length: 14 }, (_, index) => [
+            `berg_${index + 1}`,
+            bergScore,
+          ]),
         );
         await request(app.getHttpServer())
           .patch(`/assessments/${draft.body.id}`)
@@ -439,7 +446,9 @@ describe('Assessments (e2e)', () => {
 
     expect(bergAndTug.body.data).toHaveLength(2);
     expect(
-      bergAndTug.body.data.map((item: { instrumentCode: string }) => item.instrumentCode).sort(),
+      bergAndTug.body.data
+        .map((item: { instrumentCode: string }) => item.instrumentCode)
+        .sort(),
     ).toEqual(['BERG', 'TUG']);
   });
 });

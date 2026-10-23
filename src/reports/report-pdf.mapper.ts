@@ -88,7 +88,11 @@ export function mapAssessmentToReportPdfData(
       sessionDateLabel: sessionParts.dateLabel,
       sessionTimeLabel: sessionParts.timeLabel,
       rawLabel: buildRawLabel(instrumentCode, result.rawLabel),
-      resultDetailLabel: buildResultDetailLabel(instrumentCode, Number(result.rawValue), result.rawLabel),
+      resultDetailLabel: buildResultDetailLabel(
+        instrumentCode,
+        Number(result.rawValue),
+        result.rawLabel,
+      ),
       classificationLabel: buildShortClassificationLabel(
         instrumentCode,
         result.classificationCode,
@@ -112,7 +116,9 @@ export function mapAssessmentToReportPdfData(
   };
 }
 
-function resolveSchoolingLabel(assessment: AssessmentWithRelations): string | null {
+function resolveSchoolingLabel(
+  assessment: AssessmentWithRelations,
+): string | null {
   if (assessment.instrumentCode !== 'MEEM') {
     return null;
   }
@@ -178,7 +184,10 @@ function buildShortClassificationLabel(
   return fallback.split('(')[0]?.trim() || fallback;
 }
 
-function buildReferenceLabel(instrumentCode: string, meta: Record<string, unknown>): string {
+function buildReferenceLabel(
+  instrumentCode: string,
+  meta: Record<string, unknown>,
+): string {
   switch (instrumentCode) {
     case 'TUG':
       return 'TUG < 10 s = excelente; 10–13,4 s = esperado; ≥ 13,5 s = maior risco de quedas';
@@ -255,7 +264,7 @@ function formatTimeLabel(date: Date): string {
 
 function asRecord(value: Prisma.JsonValue): Record<string, unknown> {
   if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-    return value as Record<string, unknown>;
+    return value;
   }
 
   return {};

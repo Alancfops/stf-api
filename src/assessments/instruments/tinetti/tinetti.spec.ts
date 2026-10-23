@@ -1,4 +1,8 @@
-import { classifyTinetti, parseTinettiPayload, scoreTinetti } from './schema.zod';
+import {
+  classifyTinetti,
+  parseTinettiPayload,
+  scoreTinetti,
+} from './schema.zod';
 
 describe('Tinetti scorer', () => {
   const maxPayload = {
@@ -35,6 +39,8 @@ describe('Tinetti scorer', () => {
   });
 
   it('rejeita item acima do máximo', () => {
-    expect(() => parseTinettiPayload({ ...maxPayload, tinetti_11: 5 })).toThrow();
+    expect(() =>
+      parseTinettiPayload({ ...maxPayload, tinetti_11: 5 }),
+    ).toThrow();
   });
 });

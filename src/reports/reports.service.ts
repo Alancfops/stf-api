@@ -9,7 +9,10 @@ import { AssessmentsService } from '../assessments/assessments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { buildReportPdf } from './report-pdf.builder';
 import { buildAssessmentReportFilename } from './report-filename.util';
-import { assertFinalizedAssessment, mapAssessmentToReportPdfData } from './report-pdf.mapper';
+import {
+  assertFinalizedAssessment,
+  mapAssessmentToReportPdfData,
+} from './report-pdf.mapper';
 
 @Injectable()
 export class ReportsService {
@@ -45,7 +48,9 @@ export class ReportsService {
     try {
       assertFinalizedAssessment(assessment.status);
     } catch {
-      throw new BadRequestException('Somente avaliações finalizadas geram relatório.');
+      throw new BadRequestException(
+        'Somente avaliações finalizadas geram relatório.',
+      );
     }
 
     const timeseries = await this.assessmentsService.getTimeseriesForPatient(
@@ -95,7 +100,9 @@ export class ReportsService {
     try {
       assertFinalizedAssessment(assessment.status);
     } catch {
-      throw new BadRequestException('Somente avaliações finalizadas geram relatório.');
+      throw new BadRequestException(
+        'Somente avaliações finalizadas geram relatório.',
+      );
     }
 
     const timeseries = await this.assessmentsService.getTimeseriesForPatient(

@@ -62,7 +62,9 @@ function renderHeader(doc: PdfDoc, data: ReportPdfData): void {
   const logoRowHeight = 46;
 
   if (existsSync(CESMAC_LOGO_PATH)) {
-    doc.image(CESMAC_LOGO_PATH, margin, headerTop, { width: REPORT_PDF_LAYOUT.logoWidth });
+    doc.image(CESMAC_LOGO_PATH, margin, headerTop, {
+      width: REPORT_PDF_LAYOUT.logoWidth,
+    });
   }
 
   doc
@@ -75,20 +77,29 @@ function renderHeader(doc: PdfDoc, data: ReportPdfData): void {
     .font('Helvetica-Bold')
     .fontSize(8)
     .fillColor(REPORT_PDF_COLORS.muted)
-    .text('Fisioterapeuta responsável', metaX + 8, headerTop + 8, { width: metaWidth - 16 });
+    .text('Fisioterapeuta responsável', metaX + 8, headerTop + 8, {
+      width: metaWidth - 16,
+    });
 
   doc
     .font('Helvetica')
     .fontSize(9)
     .fillColor(REPORT_PDF_COLORS.text)
-    .text(`Dr(a). ${data.therapistName}`, metaX + 8, headerTop + 22, { width: metaWidth - 16 });
+    .text(`Dr(a). ${data.therapistName}`, metaX + 8, headerTop + 22, {
+      width: metaWidth - 16,
+    });
 
   doc
     .fontSize(8)
     .fillColor(REPORT_PDF_COLORS.muted)
-    .text(`Data de emissão: ${data.issuedAtDateLabel}`, metaX + 8, headerTop + 38, {
-      width: metaWidth - 16,
-    });
+    .text(
+      `Data de emissão: ${data.issuedAtDateLabel}`,
+      metaX + 8,
+      headerTop + 38,
+      {
+        width: metaWidth - 16,
+      },
+    );
 
   doc.text(`Horário: ${data.issuedAtTimeLabel}`, metaX + 8, headerTop + 50, {
     width: metaWidth - 16,
@@ -163,7 +174,11 @@ function renderAssessmentBlock(doc: PdfDoc, data: ReportPdfData): void {
   const { assessment } = data;
 
   renderFullRow(doc, 'Instrumento', assessment.instrumentName);
-  renderFullRow(doc, 'Autores do protocolo', assessment.instrumentAuthors.join('; '));
+  renderFullRow(
+    doc,
+    'Autores do protocolo',
+    assessment.instrumentAuthors.join('; '),
+  );
   renderFullRow(doc, 'Data da sessão', assessment.sessionDateLabel);
   renderFullRow(doc, 'Horário', assessment.sessionTimeLabel);
   renderFullRow(doc, 'Resultado bruto', assessment.rawLabel);
@@ -204,7 +219,10 @@ function renderInterpretationBlock(doc: PdfDoc, data: ReportPdfData): void {
       .font('Helvetica')
       .fontSize(9.5)
       .fillColor(REPORT_PDF_COLORS.text)
-      .text(assessment.difficultyHighlight, { width: contentWidth(doc), lineGap: 3 });
+      .text(assessment.difficultyHighlight, {
+        width: contentWidth(doc),
+        lineGap: 3,
+      });
   }
 
   doc.moveDown(0.15);
@@ -317,7 +335,10 @@ function renderEvolutionChart(
 
   for (let index = 0; index <= 4; index += 1) {
     const y = plotTop + (plotHeight / 4) * index;
-    doc.moveTo(plotLeft, y).lineTo(plotLeft + plotWidth, y).stroke();
+    doc
+      .moveTo(plotLeft, y)
+      .lineTo(plotLeft + plotWidth, y)
+      .stroke();
   }
 
   doc.restore();
@@ -336,8 +357,12 @@ function renderEvolutionChart(
 
   const coordinates = points.map((point, index) => {
     const x =
-      plotLeft + (points.length === 1 ? plotWidth / 2 : (plotWidth / (points.length - 1)) * index);
-    const y = plotBottom - ((point.rawValue - paddedMin) / plotRange) * plotHeight;
+      plotLeft +
+      (points.length === 1
+        ? plotWidth / 2
+        : (plotWidth / (points.length - 1)) * index);
+    const y =
+      plotBottom - ((point.rawValue - paddedMin) / plotRange) * plotHeight;
 
     return { point, x, y };
   });
@@ -359,7 +384,9 @@ function renderEvolutionChart(
 
   coordinates.forEach(({ point, x, y }) => {
     const radius = point.isCurrent ? 4 : 3;
-    const fill = point.isCurrent ? REPORT_PDF_COLORS.chartHighlight : REPORT_PDF_COLORS.chartLine;
+    const fill = point.isCurrent
+      ? REPORT_PDF_COLORS.chartHighlight
+      : REPORT_PDF_COLORS.chartLine;
 
     doc.circle(x, y, radius).fill(fill);
 
@@ -373,7 +400,10 @@ function renderEvolutionChart(
       .font('Helvetica')
       .fontSize(6.5)
       .fillColor(REPORT_PDF_COLORS.light)
-      .text(point.dateLabel, x - 16, plotBottom + 5, { width: 32, align: 'center' });
+      .text(point.dateLabel, x - 16, plotBottom + 5, {
+        width: 32,
+        align: 'center',
+      });
   });
 
   doc.y = chartY + chartHeight + 2;
@@ -391,7 +421,9 @@ function renderSignatureBlock(doc: PdfDoc, data: ReportPdfData): void {
     .font('Helvetica-Bold')
     .fontSize(9)
     .fillColor(REPORT_PDF_COLORS.muted)
-    .text('Assinatura do fisioterapeuta', leftX, blockTop, { width: columnWidth });
+    .text('Assinatura do fisioterapeuta', leftX, blockTop, {
+      width: columnWidth,
+    });
 
   doc.text('Local e data', rightX, blockTop, { width: columnWidth });
 
@@ -421,16 +453,22 @@ function renderSignatureBlock(doc: PdfDoc, data: ReportPdfData): void {
     doc
       .fontSize(8.5)
       .fillColor(REPORT_PDF_COLORS.muted)
-      .text(`CREFITO: ${data.therapistCrefito}`, leftX, lineY + 24, { width: columnWidth });
+      .text(`CREFITO: ${data.therapistCrefito}`, leftX, lineY + 24, {
+        width: columnWidth,
+      });
     leftBottom = lineY + 38;
   }
 
-  const locationLine = [data.issueLocation, data.issuedAtDateLabel].filter(Boolean).join(', ');
+  const locationLine = [data.issueLocation, data.issuedAtDateLabel]
+    .filter(Boolean)
+    .join(', ');
   doc
     .font('Helvetica')
     .fontSize(9)
     .fillColor(REPORT_PDF_COLORS.text)
-    .text(locationLine || data.issuedAtDateLabel, rightX, lineY + 10, { width: columnWidth });
+    .text(locationLine || data.issuedAtDateLabel, rightX, lineY + 10, {
+      width: columnWidth,
+    });
 
   const stampTop = Math.max(leftBottom, lineY + 34) + 8;
   const stampHeight = 48;
@@ -489,13 +527,13 @@ function renderFullRow(doc: PdfDoc, label: string, value: string): void {
     .fillColor(REPORT_PDF_COLORS.muted)
     .text(`${label}:`, doc.x, rowTop, { width: labelWidth });
 
-  doc
-    .font('Helvetica')
-    .fontSize(9.5)
-    .fillColor(REPORT_PDF_COLORS.text);
+  doc.font('Helvetica').fontSize(9.5).fillColor(REPORT_PDF_COLORS.text);
 
   const valueHeight = doc.heightOfString(value, { width: valueWidth });
-  doc.text(value, doc.x + labelWidth, rowTop, { width: valueWidth, lineGap: 2 });
+  doc.text(value, doc.x + labelWidth, rowTop, {
+    width: valueWidth,
+    lineGap: 2,
+  });
 
   doc.y = rowTop + Math.max(14, valueHeight) + 4;
   resetCursorX(doc);

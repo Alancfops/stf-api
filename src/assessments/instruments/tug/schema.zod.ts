@@ -6,9 +6,15 @@ import { InstrumentPayloadError } from '../types';
 
 const tugPayloadSchema = z
   .object({
-    trial1Sec: z.number().positive('Tempo do ensaio 1 deve ser maior que zero.'),
-    trial2Sec: z.number().positive('Tempo do ensaio 2 deve ser maior que zero.'),
-    trial3Sec: z.number().positive('Tempo do ensaio 3 deve ser maior que zero.'),
+    trial1Sec: z
+      .number()
+      .positive('Tempo do ensaio 1 deve ser maior que zero.'),
+    trial2Sec: z
+      .number()
+      .positive('Tempo do ensaio 2 deve ser maior que zero.'),
+    trial3Sec: z
+      .number()
+      .positive('Tempo do ensaio 3 deve ser maior que zero.'),
     assistiveDevice: z.string().trim().max(120).optional().nullable(),
   })
   .strict();
@@ -34,7 +40,8 @@ export function classifyTug(rawValue: number) {
 
   if (rawValue < 10) {
     code = 'TUG_EXCELLENT';
-    label = 'Desempenho funcional muito bom para idosos ativos (média abaixo de 10 segundos).';
+    label =
+      'Desempenho funcional muito bom para idosos ativos (média abaixo de 10 segundos).';
   } else if (rawValue < 13.5) {
     code = 'TUG_EXPECTED';
     label =

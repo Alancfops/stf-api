@@ -16,7 +16,9 @@ export const listPatientAssessmentsQuerySchema = z.object({
 });
 
 export const transferPatientSchema = z.object({
-  targetTherapistId: z.string().uuid('Informe um fisioterapeuta de destino válido.'),
+  targetTherapistId: z
+    .string()
+    .uuid('Informe um fisioterapeuta de destino válido.'),
 });
 
 export const listAuditLogsQuerySchema = z.object({
@@ -41,7 +43,11 @@ export const listAccessRequestsQuerySchema = z.object({
 });
 
 export type ListTherapistsQuery = z.infer<typeof listTherapistsQuerySchema>;
-export type ListPatientAssessmentsQuery = z.infer<typeof listPatientAssessmentsQuerySchema>;
+export type ListPatientAssessmentsQuery = z.infer<
+  typeof listPatientAssessmentsQuerySchema
+>;
 export type TransferPatientInput = z.infer<typeof transferPatientSchema>;
 export type ListAuditLogsQuery = z.infer<typeof listAuditLogsQuerySchema>;
-export type ListAccessRequestsQuery = z.infer<typeof listAccessRequestsQuerySchema>;
+export type ListAccessRequestsQuery = z.infer<
+  typeof listAccessRequestsQuerySchema
+>;

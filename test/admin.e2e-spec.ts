@@ -112,7 +112,9 @@ describe('Admin (e2e)', () => {
     expect(response.body.data.length).toBeGreaterThanOrEqual(2);
     expect(response.body.meta.total).toBeGreaterThanOrEqual(2);
     // A professora também atende pelo app: a própria conta aparece na lista.
-    expect(response.body.data.some((t: { id: string }) => t.id === adminId)).toBe(true);
+    expect(
+      response.body.data.some((t: { id: string }) => t.id === adminId),
+    ).toBe(true);
   });
 
   it('POST /admin/patients/:id/transfer atualiza patient e assessments', async () => {
@@ -220,7 +222,9 @@ describe('Admin (e2e)', () => {
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(403);
 
-    const stored = await prisma.therapist.findUnique({ where: { id: adminId } });
+    const stored = await prisma.therapist.findUnique({
+      where: { id: adminId },
+    });
     expect(stored).not.toBeNull();
   });
 
@@ -233,7 +237,11 @@ describe('Admin (e2e)', () => {
 
     await request(app.getHttpServer())
       .post('/auth/register')
-      .send({ email: adminEmail, fullName: 'Professora Duplicada', password: 'Abcd1234' })
+      .send({
+        email: adminEmail,
+        fullName: 'Professora Duplicada',
+        password: 'Abcd1234',
+      })
       .expect(409);
 
     const created = await request(app.getHttpServer())
@@ -252,13 +260,17 @@ describe('Admin (e2e)', () => {
       .get('/admin/therapists')
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
-    expect(list.body.data.some((t: { id: string }) => t.id === adminId)).toBe(true);
+    expect(list.body.data.some((t: { id: string }) => t.id === adminId)).toBe(
+      true,
+    );
 
     const detail = await request(app.getHttpServer())
       .get(`/admin/therapists/${adminId}`)
       .set('Authorization', `Bearer ${adminToken}`)
       .expect(200);
-    expect(detail.body.patients.map((p: { id: string }) => p.id)).toContain(created.body.id);
+    expect(detail.body.patients.map((p: { id: string }) => p.id)).toContain(
+      created.body.id,
+    );
 
     await prisma.patient.delete({ where: { id: created.body.id } });
   });
@@ -303,7 +315,9 @@ describe('Admin (e2e)', () => {
     const appAccount = await prisma.therapist.findUniqueOrThrow({
       where: { email },
     });
-    const stored = await prisma.adminAccessRequest.findMany({ where: { email } });
+    const stored = await prisma.adminAccessRequest.findMany({
+      where: { email },
+    });
     expect(stored).toHaveLength(1);
     expect(stored[0].therapistId).toBe(appAccount.id);
 
@@ -605,7 +619,9 @@ describe('Admin (e2e)', () => {
         .query({ role: 'ADMIN' })
         .set('Authorization', `Bearer ${managerToken}`)
         .expect(200);
-      expect(admins.body.data.some((t: { id: string }) => t.id === managerId)).toBe(true);
+      expect(
+        admins.body.data.some((t: { id: string }) => t.id === managerId),
+      ).toBe(true);
     });
 
     it('ASSISTANT vê todas as contas (com pacientes), mas só gerencia THERAPIST', async () => {
@@ -647,7 +663,9 @@ describe('Admin (e2e)', () => {
         .set('Authorization', `Bearer ${assistantToken}`)
         .expect(204);
 
-      const stored = await prisma.therapist.findUnique({ where: { id: scopedTherapistId } });
+      const stored = await prisma.therapist.findUnique({
+        where: { id: scopedTherapistId },
+      });
       expect(stored).toBeNull();
     });
   });

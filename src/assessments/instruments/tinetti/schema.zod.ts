@@ -1,6 +1,9 @@
 import { z } from 'zod';
 
-import { SCORING_RULE_VERSIONS, TINETTI_CLASSIFICATION } from '../../../scoring-rules';
+import {
+  SCORING_RULE_VERSIONS,
+  TINETTI_CLASSIFICATION,
+} from '../../../scoring-rules';
 import type { InstrumentHandler } from '../types';
 import { InstrumentPayloadError } from '../types';
 
@@ -23,8 +26,14 @@ const TINETTI_ITEM_LIMITS: Record<string, { min: number; max: number }> = {
   tinetti_16: { min: 0, max: 1 },
 };
 
-const BALANCE_KEYS = Array.from({ length: 9 }, (_, index) => `tinetti_${index + 1}`);
-const GAIT_KEYS = Array.from({ length: 7 }, (_, index) => `tinetti_${index + 10}`);
+const BALANCE_KEYS = Array.from(
+  { length: 9 },
+  (_, index) => `tinetti_${index + 1}`,
+);
+const GAIT_KEYS = Array.from(
+  { length: 7 },
+  (_, index) => `tinetti_${index + 10}`,
+);
 const TINETTI_ITEM_KEYS = [...BALANCE_KEYS, ...GAIT_KEYS];
 
 const tinettiShape = Object.fromEntries(
@@ -47,8 +56,14 @@ export function parseTinettiPayload(payload: unknown): TinettiPayload {
 }
 
 export function scoreTinetti(payload: TinettiPayload): number {
-  const balanceSubtotal = BALANCE_KEYS.reduce((total, key) => total + payload[key], 0);
-  const gaitSubtotal = GAIT_KEYS.reduce((total, key) => total + payload[key], 0);
+  const balanceSubtotal = BALANCE_KEYS.reduce(
+    (total, key) => total + payload[key],
+    0,
+  );
+  const gaitSubtotal = GAIT_KEYS.reduce(
+    (total, key) => total + payload[key],
+    0,
+  );
 
   return balanceSubtotal + gaitSubtotal;
 }

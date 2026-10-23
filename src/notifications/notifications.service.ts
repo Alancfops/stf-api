@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import nodemailer, { Transporter } from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { Resend } from 'resend';
 
 import { Env } from '../config/env.schema';
@@ -35,17 +36,19 @@ type OutboundEmail = {
 export class NotificationsService implements OnModuleInit {
   private readonly logger = new Logger(NotificationsService.name);
   private resend?: Resend;
-  private gmailTransporter?: Transporter;
+  private gmailTransporter?: Transporter<SMTPTransport.SentMessageInfo>;
 
   constructor(private readonly config: ConfigService<Env, true>) {}
 
   onModuleInit() {
-    const provider = this.config.get('MAIL_PROVIDER');
+    const provider = this.config.get('MAIL_PROVIDER', { infer: true });
 
     if (provider === 'resend') {
-      this.resend = new Resend(this.config.get('RESEND_API_KEY'));
+      this.resend = new Resend(
+        this.config.get('RESEND_API_KEY', { infer: true }),
+      );
       this.logger.log(
-        `E-mail transacional via Resend (${this.config.get('MAIL_FROM')})`,
+        `E-mail transacional via Resend (${this.config.get('MAIL_FROM', { infer: true })})`,
       );
       return;
     }
@@ -56,12 +59,12 @@ export class NotificationsService implements OnModuleInit {
         port: 587,
         secure: false,
         auth: {
-          user: this.config.get('GMAIL_USER'),
-          pass: this.config.get('GMAIL_APP_PASSWORD'),
+          user: this.config.get('GMAIL_USER', { infer: true }),
+          pass: this.config.get('GMAIL_APP_PASSWORD', { infer: true }),
         },
       });
       this.logger.log(
-        `E-mail transacional via Gmail SMTP (${this.config.get('MAIL_FROM')})`,
+        `E-mail transacional via Gmail SMTP (${this.config.get('MAIL_FROM', { infer: true })})`,
       );
       return;
     }
@@ -120,7 +123,7 @@ export class NotificationsService implements OnModuleInit {
   }
 
   private async dispatch(email: OutboundEmail): Promise<void> {
-    const provider = this.config.get('MAIL_PROVIDER');
+    const provider = this.config.get('MAIL_PROVIDER', { infer: true });
     const failureMessage =
       email.failureMessage ?? 'Não foi possível enviar o e-mail.';
 
@@ -135,7 +138,7 @@ export class NotificationsService implements OnModuleInit {
       return;
     }
 
-    const from = this.config.get('MAIL_FROM');
+    const from = this.config.get('MAIL_FROM', { infer: true });
 
     if (provider === 'gmail') {
       try {

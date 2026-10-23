@@ -34,9 +34,11 @@ export const REPORT_CHART_IMPROVEMENT_HINT: Record<string, string> = {
 const REPORTS_ASSETS_DIR = join(process.cwd(), 'assets', 'reports');
 
 export const CESMAC_LOGO_PATH =
-  [join(REPORTS_ASSETS_DIR, 'cesmac-logo.png'), join(REPORTS_ASSETS_DIR, 'cesmac-logo.jpeg')].find(
-    (candidate) => existsSync(candidate),
-  ) ?? join(REPORTS_ASSETS_DIR, 'cesmac-logo.png');
+  [
+    join(REPORTS_ASSETS_DIR, 'cesmac-logo.png'),
+    join(REPORTS_ASSETS_DIR, 'cesmac-logo.jpeg'),
+  ].find((candidate) => existsSync(candidate)) ??
+  join(REPORTS_ASSETS_DIR, 'cesmac-logo.png');
 
 export const SCHOOLING_LABELS: Record<string, string> = {
   analfabeto: 'Analfabeto',
@@ -52,7 +54,9 @@ export const GENDER_LABELS: Record<string, string> = {
   outro: 'Outro',
 };
 
-export function formatSchoolingLabel(value: string | null | undefined): string | null {
+export function formatSchoolingLabel(
+  value: string | null | undefined,
+): string | null {
   if (!value) {
     return null;
   }

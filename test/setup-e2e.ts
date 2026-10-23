@@ -43,7 +43,9 @@ process.env.MAIL_FROM = 'Sênior Teste Funcional <no-reply@localhost>';
 
 const devDatabaseUrl = process.env.DATABASE_URL;
 if (!devDatabaseUrl) {
-  throw new Error('Defina DATABASE_URL em .env antes de rodar npm run test:e2e.');
+  throw new Error(
+    'Defina DATABASE_URL em .env antes de rodar npm run test:e2e.',
+  );
 }
 
 const e2eDatabaseUrl = devDatabaseUrl.includes(`/${E2E_DB_NAME}`)
@@ -56,7 +58,10 @@ if (!e2eDatabaseUrl.includes(`/${E2E_DB_NAME}`)) {
   );
 }
 
-if (e2eDatabaseUrl === devDatabaseUrl && !devDatabaseUrl.includes(`/${E2E_DB_NAME}`)) {
+if (
+  e2eDatabaseUrl === devDatabaseUrl &&
+  !devDatabaseUrl.includes(`/${E2E_DB_NAME}`)
+) {
   throw new Error(
     'test:e2e bloqueado: não use o banco de desenvolvimento (senior_test). Rode npm run test:e2e:prepare.',
   );

@@ -33,6 +33,7 @@ describe('AuthService', () => {
   let notifications: {
     sendPasswordResetCode: jest.Mock;
     sendAdminTempPasswordEmail: jest.Mock;
+    sendAccessRequestReceivedEmail: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -63,6 +64,7 @@ describe('AuthService', () => {
     notifications = {
       sendPasswordResetCode: jest.fn(),
       sendAdminTempPasswordEmail: jest.fn(),
+      sendAccessRequestReceivedEmail: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -197,6 +199,60 @@ describe('AuthService', () => {
     });
   });
 
+  it('requestAdminAccess avisa a professora por e-mail', async () => {
+    prisma.therapist.findUnique.mockResolvedValue(await appAccount());
+    prisma.therapist.findFirst.mockResolvedValue({
+      email: 'professora@clinica.com',
+      fullName: 'Profa. Teste',
+    });
+    prisma.adminAccessRequest.findFirst.mockResolvedValue(null);
+    prisma.adminAccessRequest.create.mockResolvedValue({ id: 'req-1' });
+
+    await service.requestAdminAccess({
+      email: 'aluno@clinica.com',
+      fullName: 'Aluno',
+      password: 'Abcd1234',
+    });
+    await new Promise(setImmediate);
+
+    expect(prisma.therapist.findFirst).toHaveBeenCalledWith({
+      where: { role: 'ADMIN' },
+      select: { email: true, fullName: true },
+    });
+    expect(notifications.sendAccessRequestReceivedEmail).toHaveBeenCalledWith(
+      'professora@clinica.com',
+      {
+        adminName: 'Profa. Teste',
+        requesterName: 'Aluno',
+        requesterEmail: 'aluno@clinica.com',
+      },
+    );
+  });
+
+  it('requestAdminAccess mantém a solicitação se o aviso à professora falhar', async () => {
+    prisma.therapist.findUnique.mockResolvedValue(await appAccount());
+    prisma.therapist.findFirst.mockResolvedValue({
+      email: 'professora@clinica.com',
+      fullName: 'Profa. Teste',
+    });
+    prisma.adminAccessRequest.findFirst.mockResolvedValue(null);
+    prisma.adminAccessRequest.create.mockResolvedValue({ id: 'req-1' });
+    notifications.sendAccessRequestReceivedEmail.mockRejectedValue(
+      new Error('smtp down'),
+    );
+
+    await expect(
+      service.requestAdminAccess({
+        email: 'aluno@clinica.com',
+        fullName: 'Aluno',
+        password: 'Abcd1234',
+      }),
+    ).resolves.toEqual(GENERIC);
+    await new Promise(setImmediate);
+
+    expect(prisma.adminAccessRequest.create).toHaveBeenCalled();
+  });
+
   it('requestAdminAccess com senha errada responde genericamente sem criar', async () => {
     prisma.therapist.findUnique.mockResolvedValue(await appAccount());
 
@@ -209,6 +265,7 @@ describe('AuthService', () => {
     ).resolves.toEqual(GENERIC);
 
     expect(prisma.adminAccessRequest.create).not.toHaveBeenCalled();
+    expect(notifications.sendAccessRequestReceivedEmail).not.toHaveBeenCalled();
   });
 
   it('requestAdminAccess sem conta no app responde genericamente sem criar', async () => {
@@ -259,6 +316,7 @@ describe('AuthService', () => {
       select: { id: true },
     });
     expect(prisma.adminAccessRequest.create).not.toHaveBeenCalled();
+    expect(notifications.sendAccessRequestReceivedEmail).not.toHaveBeenCalled();
   });
 
   it('register bloqueia e-mail já usado por qualquer conta (inclusive professora)', async () => {

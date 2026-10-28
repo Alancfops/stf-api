@@ -179,7 +179,33 @@ export class AuthService implements OnModuleInit {
       data: { email, fullName, therapistId: appAccount.id },
     });
 
+    // Sem await: a resposta continua genérica e imediata (anti-enumeração por tempo).
+    void this.notifyAdminOfAccessRequest(fullName, email);
+
     return { message: ACCESS_REQUEST_GENERIC_MESSAGE };
+  }
+
+  /** Falha no envio não desfaz a solicitação — ela segue visível no gerenciador. */
+  private async notifyAdminOfAccessRequest(
+    requesterName: string,
+    requesterEmail: string,
+  ): Promise<void> {
+    try {
+      const admin = await this.prisma.therapist.findFirst({
+        where: { role: TherapistRole.ADMIN },
+        select: { email: true, fullName: true },
+      });
+      if (!admin) {
+        return;
+      }
+      await this.notifications.sendAccessRequestReceivedEmail(admin.email, {
+        adminName: admin.fullName,
+        requesterName,
+        requesterEmail,
+      });
+    } catch {
+      this.logger.warn('Falha ao avisar a professora sobre nova solicitação.');
+    }
   }
 
   async changePassword(

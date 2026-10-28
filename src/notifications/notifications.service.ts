@@ -10,6 +10,7 @@ import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { Resend } from 'resend';
 
 import { Env } from '../config/env.schema';
+import { buildAccessRequestReceivedEmail } from './templates/access-request-received.email';
 import {
   AdminTempPasswordEmailKind,
   buildAdminTempPasswordEmail,
@@ -119,6 +120,24 @@ export class NotificationsService implements OnModuleInit {
       text,
       html,
       logLabel: `assistant-access-${payload.decision}`,
+    });
+  }
+
+  async sendAccessRequestReceivedEmail(
+    to: string,
+    payload: {
+      adminName: string;
+      requesterName: string;
+      requesterEmail: string;
+    },
+  ): Promise<void> {
+    const { subject, text, html } = buildAccessRequestReceivedEmail(payload);
+    await this.dispatch({
+      to,
+      subject,
+      text,
+      html,
+      logLabel: 'access-request-received',
     });
   }
 
